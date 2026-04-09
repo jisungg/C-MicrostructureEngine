@@ -68,6 +68,62 @@ ctest --test-dir build --output-on-failure
 
 The test suite is intentionally split into many small cases so failures are isolated to a single behavior or regression path.
 
+## Current Usage
+
+The engine is currently used as a C++ library, not as a standalone application.
+
+The main entry points today are:
+
+- `MicrostructurePipeline` for single-venue validated event processing
+- `CrossVenueMicrostructurePipeline` for consolidated multi-venue processing
+- `HistoricalReplayEngine` for deterministic replay with optional latency offsets
+- `ResearchInterface` exports for graph, embedding, density, and heatmap generation
+
+Minimal single-venue usage looks like this:
+
+```cpp
+#include "microstructure/pipeline.hpp"
+
+using namespace microstructure;
+
+int main() {
+    MicrostructurePipeline pipeline;
+
+    const Event add_bid{
+        1, EventType::Add, 101, 100, 10, Side::Bid,
+        1, 2, 3, Venue::Nasdaq
+    };
+    const Event add_ask{
+        2, EventType::Add, 201, 102, 12, Side::Ask,
+        4, 5, 6, Venue::Nasdaq
+    };
+
+    pipeline.process(add_bid);
+    const PipelineResult result = pipeline.process(add_ask);
+
+    return result.signal.spread == 2.0 ? 0 : 1;
+}
+```
+
+There is currently no CLI inspector, desktop app, web UI, or built-in visualization layer.
+
+## Current Limitations
+
+The core engine is in place, but the repository is not yet in its finished state.
+
+Known limitations at the current stage include:
+
+- no visualization or replay viewer yet
+- no end-user CLI workflow yet
+- consolidated-book support exists, but the surrounding operator-facing tooling is still missing
+- the project should be treated as a strong engine foundation rather than a final production deployment package
+
+## Production Readiness
+
+The current codebase is best described as a strong research and infrastructure foundation.
+
+It is suitable for continued engine development, replay work, and downstream analytics integration, but it should not yet be described as a finished production platform.
+
 ## Expected Finished State
 
 The finished system is intended to be more than a library. The target end state includes:
