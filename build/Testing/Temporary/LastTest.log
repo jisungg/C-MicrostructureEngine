@@ -1,18 +1,18 @@
-Start testing: Apr 09 00:18 PDT
+Start testing: Apr 09 00:38 PDT
 ----------------------------------------------------------
 1/27 Testing: order_insertion_and_best_quotes
 1/27 Test: order_insertion_and_best_quotes
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "order_insertion_and_best_quotes"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"order_insertion_and_best_quotes" start time: Apr 09 00:18 PDT
+"order_insertion_and_best_quotes" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] order_insertion_and_best_quotes
 <end of output>
-Test time =   0.34 sec
+Test time =   0.36 sec
 ----------------------------------------------------------
 Test Passed.
-"order_insertion_and_best_quotes" end time: Apr 09 00:18 PDT
+"order_insertion_and_best_quotes" end time: Apr 09 00:38 PDT
 "order_insertion_and_best_quotes" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -20,15 +20,15 @@ Test Passed.
 2/27 Test: full_cancel_regression
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "full_cancel_regression"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"full_cancel_regression" start time: Apr 09 00:18 PDT
+"full_cancel_regression" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] full_cancel_regression
 <end of output>
-Test time =   0.01 sec
+Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"full_cancel_regression" end time: Apr 09 00:18 PDT
+"full_cancel_regression" end time: Apr 09 00:38 PDT
 "full_cancel_regression" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -36,15 +36,15 @@ Test Passed.
 3/27 Test: modify_requeue_and_price_change_semantics
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "modify_requeue_and_price_change_semantics"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"modify_requeue_and_price_change_semantics" start time: Apr 09 00:18 PDT
+"modify_requeue_and_price_change_semantics" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] modify_requeue_and_price_change_semantics
 <end of output>
-Test time =   0.01 sec
+Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"modify_requeue_and_price_change_semantics" end time: Apr 09 00:18 PDT
+"modify_requeue_and_price_change_semantics" end time: Apr 09 00:38 PDT
 "modify_requeue_and_price_change_semantics" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -52,15 +52,15 @@ Test Passed.
 4/27 Test: trade_execution_partial_and_full
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "trade_execution_partial_and_full"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"trade_execution_partial_and_full" start time: Apr 09 00:18 PDT
+"trade_execution_partial_and_full" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] trade_execution_partial_and_full
 <end of output>
-Test time =   0.01 sec
+Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"trade_execution_partial_and_full" end time: Apr 09 00:18 PDT
+"trade_execution_partial_and_full" end time: Apr 09 00:38 PDT
 "trade_execution_partial_and_full" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -68,15 +68,15 @@ Test Passed.
 5/27 Test: snapshot_restore_and_exception_safety
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "snapshot_restore_and_exception_safety"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"snapshot_restore_and_exception_safety" start time: Apr 09 00:18 PDT
+"snapshot_restore_and_exception_safety" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] snapshot_restore_and_exception_safety
 <end of output>
-Test time =   0.01 sec
+Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"snapshot_restore_and_exception_safety" end time: Apr 09 00:18 PDT
+"snapshot_restore_and_exception_safety" end time: Apr 09 00:38 PDT
 "snapshot_restore_and_exception_safety" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -84,7 +84,7 @@ Test Passed.
 6/27 Test: event_validation_and_cross_prevention
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "event_validation_and_cross_prevention"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"event_validation_and_cross_prevention" start time: Apr 09 00:18 PDT
+"event_validation_and_cross_prevention" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] event_validation_and_cross_prevention
@@ -92,7 +92,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"event_validation_and_cross_prevention" end time: Apr 09 00:18 PDT
+"event_validation_and_cross_prevention" end time: Apr 09 00:38 PDT
 "event_validation_and_cross_prevention" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -100,7 +100,7 @@ Test Passed.
 7/27 Test: feature_calculations_exact
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "feature_calculations_exact"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"feature_calculations_exact" start time: Apr 09 00:18 PDT
+"feature_calculations_exact" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] feature_calculations_exact
@@ -108,7 +108,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"feature_calculations_exact" end time: Apr 09 00:18 PDT
+"feature_calculations_exact" end time: Apr 09 00:38 PDT
 "feature_calculations_exact" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -116,7 +116,7 @@ Test Passed.
 8/27 Test: windowed_ofi_and_windowed_rates
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "windowed_ofi_and_windowed_rates"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"windowed_ofi_and_windowed_rates" start time: Apr 09 00:18 PDT
+"windowed_ofi_and_windowed_rates" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] windowed_ofi_and_windowed_rates
@@ -124,7 +124,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"windowed_ofi_and_windowed_rates" end time: Apr 09 00:18 PDT
+"windowed_ofi_and_windowed_rates" end time: Apr 09 00:38 PDT
 "windowed_ofi_and_windowed_rates" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -132,7 +132,7 @@ Test Passed.
 9/27 Test: queue_half_life_time_normalized
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "queue_half_life_time_normalized"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"queue_half_life_time_normalized" start time: Apr 09 00:18 PDT
+"queue_half_life_time_normalized" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] queue_half_life_time_normalized
@@ -140,7 +140,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"queue_half_life_time_normalized" end time: Apr 09 00:18 PDT
+"queue_half_life_time_normalized" end time: Apr 09 00:38 PDT
 "queue_half_life_time_normalized" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -148,15 +148,15 @@ Test Passed.
 10/27 Test: depth_ratio_one_sided_book
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "depth_ratio_one_sided_book"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"depth_ratio_one_sided_book" start time: Apr 09 00:18 PDT
+"depth_ratio_one_sided_book" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] depth_ratio_one_sided_book
 <end of output>
-Test time =   0.01 sec
+Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"depth_ratio_one_sided_book" end time: Apr 09 00:18 PDT
+"depth_ratio_one_sided_book" end time: Apr 09 00:38 PDT
 "depth_ratio_one_sided_book" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -164,7 +164,7 @@ Test Passed.
 11/27 Test: hidden_liquidity_and_tracker_expiry
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "hidden_liquidity_and_tracker_expiry"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"hidden_liquidity_and_tracker_expiry" start time: Apr 09 00:18 PDT
+"hidden_liquidity_and_tracker_expiry" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] hidden_liquidity_and_tracker_expiry
@@ -172,7 +172,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"hidden_liquidity_and_tracker_expiry" end time: Apr 09 00:18 PDT
+"hidden_liquidity_and_tracker_expiry" end time: Apr 09 00:38 PDT
 "hidden_liquidity_and_tracker_expiry" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -180,7 +180,7 @@ Test Passed.
 12/27 Test: hawkes_decay_and_snapshot_reset
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "hawkes_decay_and_snapshot_reset"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"hawkes_decay_and_snapshot_reset" start time: Apr 09 00:18 PDT
+"hawkes_decay_and_snapshot_reset" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] hawkes_decay_and_snapshot_reset
@@ -188,7 +188,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"hawkes_decay_and_snapshot_reset" end time: Apr 09 00:18 PDT
+"hawkes_decay_and_snapshot_reset" end time: Apr 09 00:38 PDT
 "hawkes_decay_and_snapshot_reset" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -196,7 +196,7 @@ Test Passed.
 13/27 Test: market_impact_edge_cases
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "market_impact_edge_cases"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"market_impact_edge_cases" start time: Apr 09 00:18 PDT
+"market_impact_edge_cases" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] market_impact_edge_cases
@@ -204,7 +204,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"market_impact_edge_cases" end time: Apr 09 00:18 PDT
+"market_impact_edge_cases" end time: Apr 09 00:38 PDT
 "market_impact_edge_cases" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -212,7 +212,7 @@ Test Passed.
 14/27 Test: empty_book_features_and_ml_exports
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "empty_book_features_and_ml_exports"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"empty_book_features_and_ml_exports" start time: Apr 09 00:18 PDT
+"empty_book_features_and_ml_exports" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] empty_book_features_and_ml_exports
@@ -220,7 +220,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"empty_book_features_and_ml_exports" end time: Apr 09 00:18 PDT
+"empty_book_features_and_ml_exports" end time: Apr 09 00:38 PDT
 "empty_book_features_and_ml_exports" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -228,7 +228,7 @@ Test Passed.
 15/27 Test: replay_determinism_and_latency_offsets
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "replay_determinism_and_latency_offsets"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"replay_determinism_and_latency_offsets" start time: Apr 09 00:18 PDT
+"replay_determinism_and_latency_offsets" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] replay_determinism_and_latency_offsets
@@ -236,7 +236,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"replay_determinism_and_latency_offsets" end time: Apr 09 00:18 PDT
+"replay_determinism_and_latency_offsets" end time: Apr 09 00:38 PDT
 "replay_determinism_and_latency_offsets" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -244,7 +244,7 @@ Test Passed.
 16/27 Test: export_determinism_and_ordering
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "export_determinism_and_ordering"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"export_determinism_and_ordering" start time: Apr 09 00:18 PDT
+"export_determinism_and_ordering" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] export_determinism_and_ordering
@@ -252,7 +252,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"export_determinism_and_ordering" end time: Apr 09 00:18 PDT
+"export_determinism_and_ordering" end time: Apr 09 00:38 PDT
 "export_determinism_and_ordering" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -260,7 +260,7 @@ Test Passed.
 17/27 Test: consolidated_book_and_consolidated_features
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "consolidated_book_and_consolidated_features"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"consolidated_book_and_consolidated_features" start time: Apr 09 00:18 PDT
+"consolidated_book_and_consolidated_features" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] consolidated_book_and_consolidated_features
@@ -268,7 +268,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"consolidated_book_and_consolidated_features" end time: Apr 09 00:18 PDT
+"consolidated_book_and_consolidated_features" end time: Apr 09 00:38 PDT
 "consolidated_book_and_consolidated_features" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -276,7 +276,7 @@ Test Passed.
 18/27 Test: consolidated_clear_and_duplicate_event_id_validation
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "consolidated_clear_and_duplicate_event_id_validation"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"consolidated_clear_and_duplicate_event_id_validation" start time: Apr 09 00:18 PDT
+"consolidated_clear_and_duplicate_event_id_validation" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] consolidated_clear_and_duplicate_event_id_validation
@@ -284,7 +284,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"consolidated_clear_and_duplicate_event_id_validation" end time: Apr 09 00:18 PDT
+"consolidated_clear_and_duplicate_event_id_validation" end time: Apr 09 00:38 PDT
 "consolidated_clear_and_duplicate_event_id_validation" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -292,7 +292,7 @@ Test Passed.
 19/27 Test: latency_metrics_exact
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "latency_metrics_exact"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"latency_metrics_exact" start time: Apr 09 00:18 PDT
+"latency_metrics_exact" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] latency_metrics_exact
@@ -300,7 +300,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"latency_metrics_exact" end time: Apr 09 00:18 PDT
+"latency_metrics_exact" end time: Apr 09 00:38 PDT
 "latency_metrics_exact" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -308,7 +308,7 @@ Test Passed.
 20/27 Test: trade_aggressor_sell_side
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "trade_aggressor_sell_side"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"trade_aggressor_sell_side" start time: Apr 09 00:18 PDT
+"trade_aggressor_sell_side" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] trade_aggressor_sell_side
@@ -316,7 +316,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"trade_aggressor_sell_side" end time: Apr 09 00:18 PDT
+"trade_aggressor_sell_side" end time: Apr 09 00:38 PDT
 "trade_aggressor_sell_side" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -324,7 +324,7 @@ Test Passed.
 21/27 Test: non_monotonic_timestamps_rejected
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "non_monotonic_timestamps_rejected"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"non_monotonic_timestamps_rejected" start time: Apr 09 00:18 PDT
+"non_monotonic_timestamps_rejected" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] non_monotonic_timestamps_rejected
@@ -332,7 +332,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"non_monotonic_timestamps_rejected" end time: Apr 09 00:18 PDT
+"non_monotonic_timestamps_rejected" end time: Apr 09 00:38 PDT
 "non_monotonic_timestamps_rejected" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -340,7 +340,7 @@ Test Passed.
 22/27 Test: invalid_enum_values_rejected
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "invalid_enum_values_rejected"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"invalid_enum_values_rejected" start time: Apr 09 00:18 PDT
+"invalid_enum_values_rejected" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] invalid_enum_values_rejected
@@ -348,7 +348,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"invalid_enum_values_rejected" end time: Apr 09 00:18 PDT
+"invalid_enum_values_rejected" end time: Apr 09 00:38 PDT
 "invalid_enum_values_rejected" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -356,7 +356,7 @@ Test Passed.
 23/27 Test: snapshot_followed_by_deltas
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "snapshot_followed_by_deltas"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"snapshot_followed_by_deltas" start time: Apr 09 00:18 PDT
+"snapshot_followed_by_deltas" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] snapshot_followed_by_deltas
@@ -364,7 +364,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"snapshot_followed_by_deltas" end time: Apr 09 00:18 PDT
+"snapshot_followed_by_deltas" end time: Apr 09 00:38 PDT
 "snapshot_followed_by_deltas" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -372,7 +372,7 @@ Test Passed.
 24/27 Test: book_update_delta_encoding
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "book_update_delta_encoding"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"book_update_delta_encoding" start time: Apr 09 00:18 PDT
+"book_update_delta_encoding" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] book_update_delta_encoding
@@ -380,7 +380,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"book_update_delta_encoding" end time: Apr 09 00:18 PDT
+"book_update_delta_encoding" end time: Apr 09 00:38 PDT
 "book_update_delta_encoding" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -388,7 +388,7 @@ Test Passed.
 25/27 Test: replay_graph_and_embedding_match_live
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "replay_graph_and_embedding_match_live"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"replay_graph_and_embedding_match_live" start time: Apr 09 00:18 PDT
+"replay_graph_and_embedding_match_live" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] replay_graph_and_embedding_match_live
@@ -396,7 +396,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"replay_graph_and_embedding_match_live" end time: Apr 09 00:18 PDT
+"replay_graph_and_embedding_match_live" end time: Apr 09 00:38 PDT
 "replay_graph_and_embedding_match_live" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -404,7 +404,7 @@ Test Passed.
 26/27 Test: snapshot_queue_priority
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "snapshot_queue_priority"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"snapshot_queue_priority" start time: Apr 09 00:18 PDT
+"snapshot_queue_priority" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] snapshot_queue_priority
@@ -412,7 +412,7 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"snapshot_queue_priority" end time: Apr 09 00:18 PDT
+"snapshot_queue_priority" end time: Apr 09 00:38 PDT
 "snapshot_queue_priority" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -420,7 +420,7 @@ Test Passed.
 27/27 Test: consolidated_is_crossed_and_locked
 Command: "/Users/jisung/c++/MicrostructureEngine/build/microstructure_tests" "consolidated_is_crossed_and_locked"
 Directory: /Users/jisung/c++/MicrostructureEngine/build
-"consolidated_is_crossed_and_locked" start time: Apr 09 00:18 PDT
+"consolidated_is_crossed_and_locked" start time: Apr 09 00:38 PDT
 Output:
 ----------------------------------------------------------
 [PASS] consolidated_is_crossed_and_locked
@@ -428,8 +428,8 @@ Output:
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"consolidated_is_crossed_and_locked" end time: Apr 09 00:18 PDT
+"consolidated_is_crossed_and_locked" end time: Apr 09 00:38 PDT
 "consolidated_is_crossed_and_locked" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Apr 09 00:18 PDT
+End testing: Apr 09 00:38 PDT

@@ -129,8 +129,8 @@ LiquidityRegime IncrementalFeatureEngine::classify_regime(const double spread,
                                                           const double cancel_rate) const {
     if (spread <= static_cast<double>(config_.tight_spread_threshold) &&
         depth.depth_5 >= config_.tight_depth_threshold &&
-        cancel_rate < 0.15 &&
-        volatility < 0.01) {
+        cancel_rate < config_.tight_cancel_rate_threshold &&
+        volatility < config_.tight_volatility_threshold) {
         return LiquidityRegime::Tight;
     }
     if (spread <= static_cast<double>(config_.normal_spread_threshold) &&

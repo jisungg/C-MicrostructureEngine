@@ -1,0 +1,45 @@
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# In-source CMake and build outputs
+/build/
+/build_strict/
+/cmake-build-*/
+/CMakeCache.txt
+/CMakeFiles/
+/CTestTestfile.cmake
+/Testing/
+/Makefile
+/cmake_install.cmake
+/install_manifest.txt
+/compile_commands.json
+
+# Binaries and libraries
+/microstructure_tests
+/libmicrostructure.a
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.dSYM/
+
+# Coverage and profiling
+*.gcno
+*.gcda
+*.gcov
+*.profraw
+*.profdata
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+*.swo

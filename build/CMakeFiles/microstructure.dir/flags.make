@@ -6,7 +6,7 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/Users/jisung/c++/MicrostructureEngine/include
 
-CXX_FLAGSarm64 = -std=c++20 -arch arm64 -Wall -Wextra -Wpedantic -Werror
+CXX_FLAGSarm64 = -std=c++20 -arch arm64 -Wall -Wextra -Wpedantic -Werror -Wconversion -Wsign-conversion -Wshadow
 
-CXX_FLAGS = -std=c++20 -arch arm64 -Wall -Wextra -Wpedantic -Werror
+CXX_FLAGS = -std=c++20 -arch arm64 -Wall -Wextra -Wpedantic -Werror -Wconversion -Wsign-conversion -Wshadow
 

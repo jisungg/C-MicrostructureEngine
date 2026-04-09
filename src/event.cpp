@@ -117,11 +117,13 @@ void EventValidator::validate(const Event& event) {
     if (!is_valid_venue(event.venue())) {
         throw ValidationError("invalid venue");
     }
-    if (event.price() <= 0) {
-        throw ValidationError("price must be positive");
-    }
-    if (event.size() <= 0) {
-        throw ValidationError("size must be positive");
+    if (event.event_type() != EventType::Snapshot) {
+        if (event.price() <= 0) {
+            throw ValidationError("price must be positive");
+        }
+        if (event.size() <= 0) {
+            throw ValidationError("size must be positive");
+        }
     }
     if (event.gateway_timestamp() < event.exchange_timestamp()) {
         throw ValidationError("gateway timestamp cannot precede exchange timestamp");

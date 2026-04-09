@@ -8,7 +8,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(microstructure_warnings INTERFACE)
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(microstructure_warnings INTERFACE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(microstructure_warnings INTERFACE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Werror
+        -Wconversion
+        -Wsign-conversion
+        -Wshadow
+    )
 endif()
 
 add_library(microstructure

@@ -52,6 +52,11 @@ void OrderBookStateEngine::validate_book_event(const Event& event, const EventTy
     if (event.event_type() != expected_type) {
         throw ValidationError("unexpected event type for book operation");
     }
+    // Snapshot events carry their data entirely in the payload; the top-level
+    // price, size, and side fields are not meaningful and must not be validated.
+    if (expected_type == EventType::Snapshot) {
+        return;
+    }
     if (event.price() <= 0) {
         throw ValidationError("price must be positive");
     }

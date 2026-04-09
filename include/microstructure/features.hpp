@@ -26,6 +26,8 @@ struct FeatureConfig {
     Quantity stressed_depth_threshold{10};
     double stressed_cancel_rate{0.35};
     double illiquid_cancel_rate{0.60};
+    double tight_cancel_rate_threshold{0.15};
+    double tight_volatility_threshold{0.01};
 };
 
 class IncrementalFeatureEngine {
