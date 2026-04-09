@@ -1,5 +1,0 @@
-/Users/jisung/c++/MicrostructureEngine/build/CMakeFiles/microstructure.dir
-/Users/jisung/c++/MicrostructureEngine/build/CMakeFiles/microstructure_tests.dir
-/Users/jisung/c++/MicrostructureEngine/build/CMakeFiles/test.dir
-/Users/jisung/c++/MicrostructureEngine/build/CMakeFiles/edit_cache.dir
-/Users/jisung/c++/MicrostructureEngine/build/CMakeFiles/rebuild_cache.dir
