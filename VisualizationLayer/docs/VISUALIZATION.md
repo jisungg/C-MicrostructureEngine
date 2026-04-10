@@ -256,7 +256,7 @@ The visualization layer is covered by focused tests for:
 - replay walking
 - JSON and HTML export (including filter coherence, comparison mode, bookmark staleness)
 - terminal rendering
-- simple and realistic synthetic generators (including spread diversity)
+- simple and realistic synthetic generators (including spread diversity, post-warmup persistence, multi-segment recurrence, multi-seed robustness)
 - CSV loading (including timestamp ordering)
 - empty and boundary cases
 - session JSON round-trips (including all escape sequences and edge cases)
@@ -341,7 +341,8 @@ Produces deterministic, valid `microstructure::Event` sequences for baseline rep
 Produces deterministic, state-aware event sequences with:
 
 - near-touch order clustering
-- regime-aware dynamics
+- regime-aware dynamics with Markov regime switching (Tight / Normal / Stressed)
+- regime-driven spread targeting — new quotes anchor at `best_ask − target × tick` (bids) and `best_bid + target × tick` (asks), where `target` is 1 / 2 / 3 ticks per regime; this creates mean-reversion cycles that keep spread dynamics alive throughout the full replay
 - volatility-driven mid-price movement
 - imbalance-biased trade direction
 - stale-quote cancellation bias
