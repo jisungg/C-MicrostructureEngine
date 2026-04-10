@@ -7,6 +7,7 @@
 
 #include "microstructure/event.hpp"
 #include "microstructure/types.hpp"
+#include "visualization/event_loader.hpp"
 #include "visualization/frame_capture.hpp"
 #include "visualization/html_exporter.hpp"
 #include "visualization/replay_walker.hpp"
@@ -110,25 +111,47 @@ std::size_t parse_flag_count(int argc, char** argv, const char* flag) {
     return 0;
 }
 
+// Parse a named string flag, e.g. "--from-csv data.csv".  Returns "" if absent.
+std::string parse_flag_string(int argc, char** argv, const char* flag) {
+    for (int i = 1; i < argc - 1; ++i) {
+        if (std::string{argv[i]} == flag) {
+            return std::string{argv[i + 1]};
+        }
+    }
+    return {};
+}
+
 int main(int argc, char** argv) {
     // Output path: first non-flag positional argument (default: replay.html)
     std::string output_path = "replay.html";
     for (int i = 1; i < argc; ++i) {
         const std::string arg{argv[i]};
         const std::string prev = (i > 1) ? std::string{argv[i-1]} : "";
-        const bool is_flag_value = (prev == "--synthetic" || prev == "--realistic");
+        const bool is_flag_value = (prev == "--synthetic" || prev == "--realistic"
+                                    || prev == "--from-csv");
         if (!is_flag_value && arg[0] != '-') { output_path = arg; break; }
     }
 
     const std::size_t synthetic_count = parse_flag_count(argc, argv, "--synthetic");
     const std::size_t realistic_count = parse_flag_count(argc, argv, "--realistic");
+    const std::string csv_path        = parse_flag_string(argc, argv, "--from-csv");
 
     std::cout << "MicrostructureEngine Visualization Demo\n";
     std::cout << std::string(42, '=') << "\n\n";
 
     // ── Build event sequence ──────────────────────────────────────────────
     std::vector<Event> events;
-    if (realistic_count > 0) {
+    if (!csv_path.empty()) {
+        visualization::CsvEventLoader loader{csv_path};
+        try {
+            events = loader.load();
+        } catch (const std::exception& ex) {
+            std::cerr << "ERROR: " << ex.what() << "\n";
+            return EXIT_FAILURE;
+        }
+        std::cout << "Loaded " << events.size() << " events from "
+                  << loader.source_description() << ".\n";
+    } else if (realistic_count > 0) {
         visualization::RealisticSyntheticConfig cfg;
         cfg.total_events = realistic_count;
         visualization::RealisticSyntheticGenerator gen{cfg};

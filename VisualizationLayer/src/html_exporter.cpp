@@ -21,7 +21,7 @@ std::string HtmlExporter::build_html(const std::string& frames_json,
     std::snprintf(ver_c, sizeof(ver_c), "<!-- schema_version:%d -->", kSchemaVersion);
 
     std::string html;
-    html.reserve(131072);
+    html.reserve(196608);
 
     // ── Head + CSS ────────────────────────────────────────────────────────
     html += R"VHTML(<!DOCTYPE html>
@@ -52,6 +52,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);
   padding:3px 8px;cursor:pointer;border-radius:3px;font-family:inherit;
   font-size:11px;transition:background .1s;flex-shrink:0}
 .btn:hover{background:#252933}
+.btn.active{background:#1B2A3F;border-color:var(--accent);color:var(--accent)}
 .ctrl-grp{display:flex;align-items:center;gap:3px;flex-shrink:0}
 .lbl{color:var(--muted);font-size:10px;white-space:nowrap;flex-shrink:0}
 input[type=range].sp-sl{width:64px;height:3px;cursor:pointer;accent-color:var(--accent)}
@@ -73,7 +74,7 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
   padding:4px 8px;background:#0D0F14;border-bottom:1px solid var(--border);flex-shrink:0}
 .ptitle{color:var(--muted);font-size:9px;font-weight:700;
   letter-spacing:.8px;text-transform:uppercase}
-/* book */
+/* order book */
 .book-panel{flex:1 1 0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .book-body{display:flex;flex-direction:column;flex:1 1 0;min-height:0;
   overflow:hidden;padding:2px 0}
@@ -86,6 +87,7 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
 /* level rows */
 .lr{display:flex;align-items:center;padding:1px 8px;gap:4px;position:relative;cursor:default}
 .lr:hover{background:#1A1D24}
+.trade-level{background:#1E1205;box-shadow:inset 2px 0 0 var(--trade)}
 .lbar{position:absolute;top:0;bottom:0;right:0;pointer-events:none;transition:width .12s ease}
 .ask-l .lbar{background:rgba(255,92,92,.13)}
 .bid-l .lbar{background:rgba(46,204,113,.13)}
@@ -121,8 +123,9 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
 .regime-illiquid{color:var(--illiquid)}
 /* right column */
 .rcol{display:flex;flex-direction:column;overflow:hidden;min-height:0}
+/* 6 charts: 2 cols x 3 rows */
 .charts-grid{flex:1 1 0;min-height:0;display:grid;
-  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:0;overflow:hidden}
+  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0;overflow:hidden}
 .chart-cell{background:var(--panel);border-right:1px solid var(--border);
   border-bottom:1px solid var(--border);display:flex;flex-direction:column;
   overflow:hidden;min-height:0}
@@ -131,8 +134,14 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
 .ctitle{color:var(--muted);font-size:9px;letter-spacing:.5px;text-transform:uppercase}
 .cval{color:var(--text);font-size:10px;font-variant-numeric:tabular-nums}
 .chart-cell canvas{flex:1 1 0;display:block;width:100%;min-height:0}
+/* liquidity heatmap panel */
+.hm-panel{flex:0 0 0;overflow:hidden;background:var(--panel);
+  border-top:1px solid var(--border);transition:flex-basis .18s ease;
+  display:flex;flex-direction:column}
+.hm-panel.vis{flex:0 0 116px}
+#hm-canvas{flex:1 1 0;display:block;width:100%;min-height:0}
 /* event tape */
-.tape{flex:0 0 106px;overflow-y:auto;background:var(--panel);
+.tape{flex:0 0 82px;overflow-y:auto;background:var(--panel);
   border-top:1px solid var(--border)}
 .tape-row{display:flex;align-items:center;padding:1px 8px;gap:6px;
   font-size:10px;cursor:pointer;border-bottom:1px solid #0D0F14;
@@ -183,6 +192,8 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
     <option value="CANCEL">Cancels</option>
     <option value="MODIFY">Modifies</option>
   </select>
+  <span class="sep">|</span>
+  <button class="btn" id="hm-btn" onclick="toggleHeatmap()" title="Toggle liquidity heatmap">Heatmap</button>
   <span class="sep">|</span>
   <span class="lbl">Jump:</span>
   <input type="number" class="ji" id="jf" placeholder="frame" min="0"
@@ -238,6 +249,27 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
         </div>
         <canvas id="chart-microprice"></canvas>
       </div>
+      <div class="chart-cell">
+        <div class="chdr">
+          <span class="ctitle">LIQ SLOPE</span>
+          <span class="cval" id="cv-liqslope">&#8212;</span>
+        </div>
+        <canvas id="chart-liqslope"></canvas>
+      </div>
+      <div class="chart-cell">
+        <div class="chdr">
+          <span class="ctitle">CANCEL RATE</span>
+          <span class="cval" id="cv-cancelrate">&#8212;</span>
+        </div>
+        <canvas id="chart-cancelrate"></canvas>
+      </div>
+    </div>
+    <div class="hm-panel" id="hm-panel">
+      <div class="phdr">
+        <span class="ptitle">LIQUIDITY HEATMAP</span>
+        <span class="lbl" id="hm-info"></span>
+      </div>
+      <canvas id="hm-canvas"></canvas>
     </div>
     <div class="tape" id="tape">
       <div class="phdr"><span class="ptitle">EVENT TAPE</span></div>
@@ -263,7 +295,7 @@ const FRAMES=)VHTML";
     // ── JavaScript ────────────────────────────────────────────────────────
     html += R"VHTML(;
 // ── state ──────────────────────────────────────────────────────────────────
-var idx=0,playing=false,playTmr=null,speedMs=200,flt='ALL';
+var idx=0,playing=false,playTmr=null,speedMs=200,flt='ALL',showHm=false;
 
 // ── utils ───────────────────────────────────────────────────────────────────
 function fmt(v,dp){
@@ -332,6 +364,14 @@ function togglePlay(){
   }
 }
 function setFilter(v){flt=v;render();}
+function toggleHeatmap(){
+  showHm=!showHm;
+  var p=document.getElementById('hm-panel');
+  var b=document.getElementById('hm-btn');
+  if(showHm){p.classList.add('vis');b.classList.add('active');}
+  else{p.classList.remove('vis');b.classList.remove('active');}
+  render();
+}
 
 // ── render: frame info ────────────────────────────────────────────────────────
 function renderInfo(){
@@ -359,14 +399,17 @@ function renderBook(){
   var bids=f.bid_levels||[];
   var allV=asks.concat(bids).map(function(l){return l.volume;});
   var maxV=allV.length?Math.max.apply(null,allV):1;
+  var tradePx=(f.is_trade&&f.trade)?f.trade.price:null;
 
   function lvl(levels,side){
     return levels.map(function(l){
       var pct=Math.max(0.5,(l.volume/maxV)*100).toFixed(1);
+      var isTrade=(tradePx!==null&&l.price===tradePx);
+      var cls='lr '+side+'-l'+(isTrade?' trade-level':'');
       var ex='flow:'+fmt(l.order_flow,4)+
         ' \u00b7 cancel:'+fmt(l.cancel_rate,4)+
         ' \u00b7 fill:'+fmt(l.fill_rate,4);
-      return '<div class="lr '+side+'-l">'+
+      return '<div class="'+cls+'">'+
         '<div class="lbar" style="width:'+pct+'%"></div>'+
         '<span class="lp">'+l.price+'</span>'+
         '<span class="lv">'+l.volume+'</span>'+
@@ -456,7 +499,7 @@ function drawChart(cid,key,color,dp){
     ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();
   }
 
-  // trade markers
+  // trade markers — amber vertical dashes at trade frames
   ctx.fillStyle='rgba(245,158,11,.18)';
   for(var ti=0;ti<vals.length;ti++){
     if(FRAMES[start+ti]&&FRAMES[start+ti].is_trade){
@@ -464,7 +507,7 @@ function drawChart(cid,key,color,dp){
     }
   }
 
-  // zero line for imbalance/ofi
+  // zero line for oscillating signals
   if(key==='imbalance'||key==='ofi'){
     var zy=toY(0);
     if(zy!==null&&zy>pT&&zy<H-pB){
@@ -506,11 +549,112 @@ function drawChart(cid,key,color,dp){
 }
 
 function renderCharts(){
-  var ok=drawChart('chart-spread',    'spread',    '#4DA3FF',3);
-  drawChart('chart-imbalance','imbalance','#F59E0B',4);
-  drawChart('chart-ofi',      'ofi',      '#A78BFA',4);
-  drawChart('chart-microprice','microprice','#2ECC71',4);
+  var ok=drawChart('chart-spread',    'spread',          '#4DA3FF',3);
+  drawChart('chart-imbalance', 'imbalance',       '#F59E0B',4);
+  drawChart('chart-ofi',       'ofi',             '#A78BFA',4);
+  drawChart('chart-microprice','microprice',      '#2ECC71',4);
+  drawChart('chart-liqslope',  'liquidity_slope', '#FF6B9D',4);
+  drawChart('chart-cancelrate','cancel_rate',     '#6CB8FF',4);
   if(!ok)setTimeout(render,60);
+}
+
+// ── render: liquidity heatmap ─────────────────────────────────────────────────
+// X axis = time (frames in window), Y axis = price, colour = bid/ask volume.
+// Trade executions shown as amber dots.
+function drawHeatmap(){
+  var canvas=document.getElementById('hm-canvas');
+  if(!canvas)return;
+  var W=canvas.clientWidth||canvas.offsetWidth;
+  var H=canvas.clientHeight||canvas.offsetHeight;
+  if(W<4||H<8)return;
+  canvas.width=W;canvas.height=H;
+  var ctx=canvas.getContext('2d');
+  ctx.fillStyle='#0D0F14';ctx.fillRect(0,0,W,H);
+
+  var start=Math.max(0,idx-CWIN+1);
+  var nF=idx-start+1;
+  if(nF<2)return;
+
+  // Pass 1: find price range and max volume
+  var minP=Infinity,maxP=-Infinity,maxVol=1;
+  for(var i=start;i<=idx;i++){
+    var f=FRAMES[i];
+    var lvls=(f.bid_levels||[]).concat(f.ask_levels||[]);
+    for(var j=0;j<lvls.length;j++){
+      if(lvls[j].price<minP)minP=lvls[j].price;
+      if(lvls[j].price>maxP)maxP=lvls[j].price;
+      if(lvls[j].volume>maxVol)maxVol=lvls[j].volume;
+    }
+  }
+  if(minP===Infinity)return;
+  var priceRange=maxP-minP||1;
+
+  // Column width (each frame = one column)
+  var colW=Math.max(1,(W-1)/(nF>1?nF-1:1));
+  // Estimate tick height: render rectangles 2px tall (price granularity)
+  var lvlH=Math.max(2,Math.min(8,H/Math.max(1,priceRange)*2));
+
+  function toX(fi){return (nF>1)?((fi-start)/(nF-1))*(W-colW):0;}
+  function toY(p){return H-1-((p-minP)/priceRange)*(H-1);}
+
+  // Pass 2: draw levels
+  for(var fi=start;fi<=idx;fi++){
+    var frame=FRAMES[fi];
+    var x=toX(fi);
+
+    var bids=frame.bid_levels||[];
+    for(var bi=0;bi<bids.length;bi++){
+      var l=bids[bi];
+      var alpha=Math.min(0.85,(l.volume/maxVol)*1.6);
+      var y=toY(l.price);
+      ctx.fillStyle='rgba(46,204,113,'+alpha.toFixed(3)+')';
+      ctx.fillRect(x,Math.max(0,y-lvlH*0.5),colW+0.5,lvlH);
+    }
+    var asks=frame.ask_levels||[];
+    for(var ai=0;ai<asks.length;ai++){
+      var la=asks[ai];
+      var alphaa=Math.min(0.85,(la.volume/maxVol)*1.6);
+      var ya=toY(la.price);
+      ctx.fillStyle='rgba(255,92,92,'+alphaa.toFixed(3)+')';
+      ctx.fillRect(x,Math.max(0,ya-lvlH*0.5),colW+0.5,lvlH);
+    }
+
+    // Mid price faint line
+    if(frame.best_bid!==null&&frame.best_ask!==null){
+      var midP=(frame.best_bid+frame.best_ask)/2.0;
+      var ym=toY(midP);
+      ctx.fillStyle='rgba(230,180,80,.25)';
+      ctx.fillRect(x,Math.max(0,ym-0.5),colW+0.5,1);
+    }
+  }
+
+  // Pass 3: trade markers (amber dots on top)
+  for(var fi2=start;fi2<=idx;fi2++){
+    var frame2=FRAMES[fi2];
+    if(frame2.is_trade&&frame2.trade){
+      var xt=toX(fi2)+colW*0.5;
+      var yt=toY(frame2.trade.price);
+      ctx.beginPath();
+      ctx.arc(xt,yt,Math.min(3,colW*0.6+1),0,Math.PI*2);
+      ctx.fillStyle='rgba(245,158,11,.95)';
+      ctx.fill();
+    }
+  }
+
+  // Current frame cursor
+  var cxh=toX(idx)+colW*0.5;
+  ctx.strokeStyle='#FFFFFF55';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(cxh,0);ctx.lineTo(cxh,H);ctx.stroke();
+
+  // Price axis labels (right edge)
+  ctx.fillStyle='#3A3E4A';ctx.font='8px monospace';ctx.textAlign='right';
+  ctx.fillText(String(maxP),W-2,9);
+  ctx.fillText(String(minP),W-2,H-2);
+
+  // Info: price range and frame window
+  var hmInfo=document.getElementById('hm-info');
+  if(hmInfo)hmInfo.textContent=
+    'px '+minP+'\u2013'+maxP+'  \u00b7  '+nF+' frames';
 }
 
 // ── render: event tape ────────────────────────────────────────────────────────
@@ -535,6 +679,7 @@ function renderTape(){
 }
 
 // ── render: timeline scrubber ─────────────────────────────────────────────────
+// Scrubber shows: regime colouring, trade density (bottom band), cursor, progress.
 function renderScrubber(){
   var canvas=document.getElementById('scrubber');
   var W=canvas.clientWidth||canvas.offsetWidth||400;
@@ -544,6 +689,7 @@ function renderScrubber(){
   ctx.fillStyle='#0A0B0E';ctx.fillRect(0,0,W,H);
   if(n<2)return;
 
+  // bucket pass — one canvas-column = one bucket
   var bucks=Math.min(W,n);var bw=W/bucks;
   for(var b=0;b<bucks;b++){
     var fi=Math.floor(b*n/bucks);
@@ -556,9 +702,11 @@ function renderScrubber(){
     var x=b*bw;
     if(regime==='stressed'){ctx.fillStyle='rgba(255,92,92,.07)';ctx.fillRect(x,0,bw+.5,H);}
     else if(regime==='tight'){ctx.fillStyle='rgba(46,204,113,.05)';ctx.fillRect(x,0,bw+.5,H);}
-    if(hasTrade){ctx.fillStyle='rgba(245,158,11,.4)';ctx.fillRect(x,H*.55,bw+.5,H*.45);}
+    // trade density bar in bottom 40%
+    if(hasTrade){ctx.fillStyle='rgba(245,158,11,.4)';ctx.fillRect(x,H*.6,bw+.5,H*.4);}
   }
 
+  // playhead fill + cursor
   var px=(idx/(n-1))*W;
   ctx.fillStyle='rgba(77,163,255,.08)';ctx.fillRect(0,0,px,H);
   ctx.fillStyle='#4DA3FF';ctx.fillRect(Math.round(px)-1,0,2,H);
@@ -573,7 +721,9 @@ function render(){
     document.getElementById('fi').textContent='No frames loaded.';return;
   }
   renderInfo();renderBadge();renderBook();renderSigs();
-  renderCharts();renderTape();renderScrubber();
+  renderCharts();
+  if(showHm)drawHeatmap();
+  renderTape();renderScrubber();
 }
 
 // ── scrubber click/drag ───────────────────────────────────────────────────────
@@ -602,6 +752,7 @@ document.addEventListener('keydown',function(e){
   else if(e.key===' '){e.preventDefault();togglePlay();}
   else if(e.key==='Home')goFirst();
   else if(e.key==='End')goLast();
+  else if(e.key==='h')toggleHeatmap();
 });
 
 window.addEventListener('resize',render);

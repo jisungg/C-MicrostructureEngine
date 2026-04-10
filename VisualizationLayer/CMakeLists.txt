@@ -10,6 +10,7 @@ add_library(visualization
     src/terminal_renderer.cpp
     src/synthetic_event_generator.cpp
     src/realistic_synthetic_generator.cpp
+    src/csv_event_loader.cpp
 )
 
 target_include_directories(visualization PUBLIC include)
@@ -36,6 +37,9 @@ target_link_libraries(viz_test_synthetic_generator PRIVATE visualization)
 
 add_executable(viz_test_realistic_generator tests/test_realistic_generator.cpp)
 target_link_libraries(viz_test_realistic_generator PRIVATE visualization)
+
+add_executable(viz_test_event_loader tests/test_event_loader.cpp)
+target_link_libraries(viz_test_event_loader PRIVATE visualization)
 
 # ── CTest registration ────────────────────────────────────────────────────
 set(VIZ_FRAME_EXTRACTOR_TESTS
@@ -122,4 +126,23 @@ set(VIZ_REALISTIC_TESTS
 
 foreach(tc IN LISTS VIZ_REALISTIC_TESTS)
     add_test(NAME viz_${tc} COMMAND viz_test_realistic_generator ${tc})
+endforeach()
+
+set(VIZ_EVENT_LOADER_TESTS
+    csv_load_basic
+    csv_source_description
+    csv_skip_comments_and_blanks
+    csv_no_header
+    csv_all_venues
+    csv_all_event_types
+    csv_pipeline_integration
+    csv_error_bad_file
+    csv_error_too_few_fields
+    csv_error_bad_event_type
+    csv_error_bad_side
+    csv_whitespace_trimming
+)
+
+foreach(tc IN LISTS VIZ_EVENT_LOADER_TESTS)
+    add_test(NAME viz_${tc} COMMAND viz_test_event_loader ${tc})
 endforeach()
