@@ -1,31 +1,26 @@
-# Editor and local assistant state
-.vscode/
-.claude/
-.idea/
-
 # macOS
 .DS_Store
 
-# Workspace build trees
-/build/
-/build_viz/
-/build_*/
-/cmake-build-*/
+# Editors
+.vscode/
+.idea/
 
-# CMake generated files
+# In-source CMake and build outputs
+/build/
+/build_strict/
+/cmake-build-*/
 /CMakeCache.txt
 /CMakeFiles/
 /CTestTestfile.cmake
 /Testing/
 /Makefile
 /cmake_install.cmake
-/compile_commands.json
 /install_manifest.txt
+/compile_commands.json
 
-# Generated outputs
-/replay.html
-
-# Compiled artifacts
+# Binaries and libraries
+/microstructure_tests
+/libmicrostructure.a
 *.o
 *.obj
 *.a

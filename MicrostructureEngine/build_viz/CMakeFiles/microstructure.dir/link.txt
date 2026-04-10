@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmicrostructure.a CMakeFiles/microstructure.dir/src/event.cpp.o CMakeFiles/microstructure.dir/src/order_book.cpp.o CMakeFiles/microstructure.dir/src/features.cpp.o CMakeFiles/microstructure.dir/src/ml.cpp.o CMakeFiles/microstructure.dir/src/pipeline.cpp.o CMakeFiles/microstructure.dir/src/replay.cpp.o CMakeFiles/microstructure.dir/src/consolidated_book.cpp.o
+/usr/bin/ranlib libmicrostructure.a
