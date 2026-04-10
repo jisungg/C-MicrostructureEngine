@@ -11,6 +11,7 @@ add_library(visualization
     src/synthetic_event_generator.cpp
     src/realistic_synthetic_generator.cpp
     src/csv_event_loader.cpp
+    src/session.cpp
 )
 
 target_include_directories(visualization PUBLIC include)
@@ -40,6 +41,12 @@ target_link_libraries(viz_test_realistic_generator PRIVATE visualization)
 
 add_executable(viz_test_event_loader tests/test_event_loader.cpp)
 target_link_libraries(viz_test_event_loader PRIVATE visualization)
+
+add_executable(viz_test_boundaries tests/test_boundaries.cpp)
+target_link_libraries(viz_test_boundaries PRIVATE visualization)
+
+add_executable(viz_test_session tests/test_session.cpp)
+target_link_libraries(viz_test_session PRIVATE visualization)
 
 # ── CTest registration ────────────────────────────────────────────────────
 set(VIZ_FRAME_EXTRACTOR_TESTS
@@ -86,6 +93,16 @@ set(VIZ_EXPORTER_TESTS
     html_contains_frames_json
     json_no_inf_or_nan
     html_no_inf_or_nan
+    json_one_sided_spread_null
+    terminal_no_inf_signals
+    html_has_event_id_jump
+    html_has_bookmarks
+    html_has_search_overlay
+    html_has_export
+    html_has_tape_filter
+    html_has_chart_crosshair
+    html_has_comparison_mode
+    html_filter_coherence
 )
 
 foreach(tc IN LISTS VIZ_EXPORTER_TESTS)
@@ -141,8 +158,45 @@ set(VIZ_EVENT_LOADER_TESTS
     csv_error_bad_event_type
     csv_error_bad_side
     csv_whitespace_trimming
+    csv_extra_columns
+    csv_trailing_comma
+    csv_empty_event_type
+    csv_out_of_order
+    csv_stress_large
 )
 
 foreach(tc IN LISTS VIZ_EVENT_LOADER_TESTS)
     add_test(NAME viz_${tc} COMMAND viz_test_event_loader ${tc})
+endforeach()
+
+set(VIZ_BOUNDARY_TESTS
+    empty_event_capture
+    single_event_capture
+    serializer_empty_sequence
+    html_empty_sequence
+    walker_on_empty_throws
+    walker_jump_oob
+    terminal_one_sided_no_crash
+    large_sequence_no_crash
+)
+
+foreach(tc IN LISTS VIZ_BOUNDARY_TESTS)
+    add_test(NAME viz_${tc} COMMAND viz_test_boundaries ${tc})
+endforeach()
+
+set(VIZ_SESSION_TESTS
+    session_roundtrip
+    session_default_roundtrip
+    session_all_source_modes
+    session_matches_all_filter
+    session_matches_specific_filter
+    session_save_load
+    session_load_bad_file
+    session_from_json_bad_input
+    session_json_contains_keys
+    session_bookmark_persistence
+)
+
+foreach(tc IN LISTS VIZ_SESSION_TESTS)
+    add_test(NAME viz_${tc} COMMAND viz_test_session ${tc})
 endforeach()

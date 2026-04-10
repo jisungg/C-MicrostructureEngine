@@ -129,10 +129,16 @@ std::string JsonSerializer::serialize_frame(const VisualizationFrame& f) const {
     o += "\"best_bid_volume\":" + fmt_int64(f.best_bid_volume) + ',';
     o += "\"best_ask_volume\":" + fmt_int64(f.best_ask_volume) + ',';
 
-    // Derived
-    o += "\"spread\":" + fmt_double(f.spread) + ',';
-    o += "\"mid\":" + fmt_double(f.mid) + ',';
-    o += "\"microprice\":" + fmt_double(f.microprice) + ',';
+    // Derived — only meaningful when both sides of the book are present
+    if (f.best_bid.has_value() && f.best_ask.has_value()) {
+        o += "\"spread\":" + fmt_double(f.spread) + ',';
+        o += "\"mid\":" + fmt_double(f.mid) + ',';
+        o += "\"microprice\":" + fmt_double(f.microprice) + ',';
+    } else {
+        o += "\"spread\":null,";
+        o += "\"mid\":null,";
+        o += "\"microprice\":null,";
+    }
 
     // Analytics
     o += "\"imbalance\":" + fmt_double(f.imbalance) + ',';

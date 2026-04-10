@@ -151,6 +151,14 @@ std::vector<microstructure::Event> CsvEventLoader::load() const {
             const auto pts  = parse_int<microstructure::Timestamp>(fields[8]);
             const auto ven  = parse_venue(fields[9]);
 
+            // Enforce monotonically non-decreasing exchange timestamps.
+            if (!events.empty() && ets < events.back().exchange_timestamp()) {
+                throw std::runtime_error(
+                    "exchange_timestamp not monotonically non-decreasing (got " +
+                    std::to_string(ets) + " after " +
+                    std::to_string(events.back().exchange_timestamp()) + ")");
+            }
+
             events.emplace_back(eid, etype, oid, px, sz, sd, ets, rts, pts, ven);
 
         } catch (const std::exception& ex) {

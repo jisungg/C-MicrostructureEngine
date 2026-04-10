@@ -1,45 +1,43 @@
 # Microstructure Engine
 
-`MicrostructureEngine` is a C++20 market microstructure and order book research engine focused on deterministic state updates, replayable event processing, and machine-learning-ready exports.
+`MicrostructureEngine` is a C++20 market microstructure and order book engine focused on deterministic state updates, replayable event processing, strict invariants, and machine-learning-ready exports.
 
-The repository is currently in the "core engine" stage: the matching-state logic, replay path, analytics layer, and ML export surface exist, while the operator-facing product layer is still ahead of it.
+This directory is the computational core of the larger workspace. The sibling visualization project at [../VisualizationLayer/docs/VISUALIZATION.md](../VisualizationLayer/docs/VISUALIZATION.md) now consumes this engine for replay capture and HTML/terminal inspection, while this subproject remains library-first.
 
 ## Current State
 
-Today the project includes:
+Today the engine includes:
 
-- Immutable market event objects for `ADD`, `CANCEL`, `MODIFY`, `TRADE`, and `SNAPSHOT`
-- Event validation and normalization before state mutation
-- A deterministic price-time-priority order book engine
-- Incremental microstructure features, including imbalance, microprice, spread, OFI, depth metrics, queue metrics, liquidity surfaces, Hawkes hooks, hidden-liquidity heuristics, and liquidity regime labels
-- Historical replay with latency-offset simulation and deterministic verification
-- Research and ML exports, including a graph view, fixed-width book embedding, liquidity density output, and liquidity heatmap export
-- Cross-venue consolidated-book infrastructure
-- A focused CTest suite built from many small feature and regression tests rather than a single monolithic test
+- immutable market event objects for `ADD`, `CANCEL`, `MODIFY`, `TRADE`, and `SNAPSHOT`
+- validation and normalization before state mutation
+- a deterministic price-time-priority order book engine
+- incremental microstructure features, including imbalance, microprice, spread, OFI, depth metrics, queue metrics, liquidity surfaces, Hawkes hooks, hidden-liquidity heuristics, and liquidity regime labels
+- historical replay with latency-offset simulation and deterministic verification
+- research and ML exports, including a graph view, fixed-width book embedding, liquidity density output, and liquidity heatmap export
+- cross-venue consolidated-book infrastructure
+- a focused CTest suite built from many small feature and regression tests rather than a single monolithic test
 
-## What This Repository Is Right Now
+## What This Directory Is Right Now
 
-This repository should currently be viewed as:
+This subproject should currently be viewed as:
 
 - a serious engine foundation for market microstructure research
-- a deterministic C++ library with test coverage and replay tooling
-- a good base for feature research, execution modeling, and downstream ML pipelines
+- a deterministic C++ library with replay and export surfaces
+- a base for execution modeling, feature research, and downstream ML pipelines
 
-This repository should not yet be viewed as:
+This subproject should not be viewed as:
 
-- a finished operator-facing application
-- a complete visualization platform
-- a final production deployment package
-
-Visualization, ingestion tooling, richer operator workflows, and the final presentation layer are still expected future work.
+- a standalone end-user application
+- the full analyst workflow layer
+- the finished production deployment package for the overall workspace
 
 ## Core Design Goals
 
-- Deterministic replay for identical event streams
-- Explicit validation before state mutation
-- Strict state invariants around book consistency
-- Modular separation of event handling, state updates, features, replay, and exports
-- Warning-clean C++20 code under strict compiler settings
+- deterministic replay for identical event streams
+- explicit validation before state mutation
+- strict state invariants around book consistency
+- modular separation of event handling, state updates, features, replay, and exports
+- warning-clean C++20 code under strict compiler settings
 - ML-friendly outputs without tying the engine to one specific model stack
 
 ## Repository Layout
@@ -49,7 +47,7 @@ MicrostructureEngine/
 ├── include/      # Public headers
 ├── src/          # Engine implementation
 ├── tests/        # Focused unit and regression tests
-├── changelog/    # Project notes and development history
+├── changelog/    # Project notes and remediation history
 └── CMakeLists.txt
 ```
 
@@ -66,11 +64,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The test suite is intentionally split into many small cases so failures are isolated to a single behavior or regression path.
+The suite is intentionally split into many small cases so failures isolate to one behavior or regression path.
 
 ## Current Usage
 
-The engine is currently used as a C++ library, not as a standalone application.
+The engine is consumed primarily as a C++ library.
 
 The main entry points today are:
 
@@ -105,58 +103,43 @@ int main() {
 }
 ```
 
-There is currently no CLI inspector, desktop app, web UI, or built-in visualization layer.
+The workspace now also includes a companion visualization layer in `../VisualizationLayer` that replays engine output into terminal and HTML views. That visualization tooling is outside this subdirectory and does not change the engine’s library-first design.
 
 ## Current Limitations
 
-The core engine is in place, but the repository is not yet in its finished state.
+The core engine is strong, but the overall platform is not yet in its finished state.
 
 Known limitations at the current stage include:
 
-- no visualization or replay viewer yet
-- no end-user CLI workflow yet
-- consolidated-book support exists, but the surrounding operator-facing tooling is still missing
-- the project should be treated as a strong engine foundation rather than a final production deployment package
+- this subproject does not provide its own standalone CLI or UI
+- persistent analyst workflow features such as bookmarks, saved sessions, timestamp jumps, and comparison views are not part of the engine layer
+- consolidated-book infrastructure exists, but richer operator-facing consolidated workflows are still limited
+- the project should still be treated as a strong deterministic engine foundation rather than the final product layer
 
 ## Production Readiness
 
-The current codebase is best described as a strong research and infrastructure foundation.
+The engine itself is best described as a strong research and infrastructure foundation.
 
-It is suitable for continued engine development, replay work, and downstream analytics integration, but it should not yet be described as a finished production platform.
+It is suitable for continued replay work, downstream analytics integration, and visualization consumption, but the overall workspace should not yet be described as a finished production analyst platform.
 
 ## Expected Finished State
 
-The finished system is intended to be more than a library. The target end state includes:
+The finished system is intended to be more than a library. The target end state extends the current engine with:
 
-- A replay and visualization layer for stepping through market events in time order
-- Real-time and historical views of the limit order book, top-of-book changes, and queue dynamics
-- Depth-profile and liquidity-surface visualizations
-- Venue-aware consolidated-book visualization
-- Signal dashboards for spread, imbalance, OFI, queue metrics, regime shifts, and hidden-liquidity heuristics
-- Market-impact exploration tools for execution and liquidity-consumption scenarios
-- Cleaner ingestion paths for historical datasets and live research feeds
-- More complete production hardening around persistence, auditability, and deployment workflows
-
-## Expected Visualization Layer
-
-The planned visualization layer is expected to include:
-
-- Book ladder and top-of-book timeline views
-- Depth curve and cumulative liquidity views
-- Liquidity heatmaps around mid-price
-- Replay controls for stepping event by event or by time window
-- Cross-venue comparative views
-- Feature panels for per-event signal inspection
-- Exportable research snapshots for notebooks and downstream analytics
+- richer replay and visualization tooling
+- clearer real-data ingestion paths
+- stronger consolidated-book inspection workflows
+- market-impact exploration and scenario tooling
+- more complete persistence, auditability, and deployment workflows
 
 ## Current Gap Between Now and Finished
 
-What exists now is the computational core.
+What exists now is the computational core plus a companion visualization prototype in the workspace.
 
-What still needs to mature into the finished platform is the surrounding product layer:
+What still needs to mature into the finished platform is the surrounding workflow layer:
 
-- visualization
-- polished replay UX
-- ingestion and session-management tooling
-- broader production-operability support
-- final documentation for end users beyond developers and researchers
+- richer replay UX
+- session and bookmark workflows
+- broader ingestion and dataset-management tooling
+- stronger production-operability support
+- final end-user documentation beyond developer/research usage

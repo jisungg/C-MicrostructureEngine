@@ -136,6 +136,16 @@ int main(int argc, char** argv) {
     const std::size_t realistic_count = parse_flag_count(argc, argv, "--realistic");
     const std::string csv_path        = parse_flag_string(argc, argv, "--from-csv");
 
+    // Reject conflicting source flags.
+    const int source_count = (csv_path.empty() ? 0 : 1)
+                           + (synthetic_count > 0 ? 1 : 0)
+                           + (realistic_count > 0 ? 1 : 0);
+    if (source_count > 1) {
+        std::cerr << "ERROR: conflicting source flags: specify at most one of "
+                     "--from-csv, --synthetic, or --realistic\n";
+        return EXIT_FAILURE;
+    }
+
     std::cout << "MicrostructureEngine Visualization Demo\n";
     std::cout << std::string(42, '=') << "\n\n";
 

@@ -159,6 +159,47 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
 #scrubber{display:block;width:100%;height:26px;cursor:pointer;
   touch-action:none;border-radius:2px}
 .scr-lbl{display:flex;justify-content:space-between;color:var(--muted);font-size:9px}
+/* bookmarks */
+.bk-panel{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--border);
+  max-height:80px;overflow-y:auto}
+.bk-row{display:flex;align-items:center;padding:2px 8px;gap:6px;font-size:10px;
+  cursor:pointer;border-bottom:1px solid #0D0F14}
+.bk-row:hover{background:#1A1D24}
+.bk-cur{background:#2A1A05}
+.bk-dot{width:7px;height:7px;border-radius:50%;background:var(--trade);flex-shrink:0}
+/* search overlay */
+#srch-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.72);z-index:9999;align-items:flex-start;justify-content:center;
+  padding-top:80px}
+#srch-overlay.vis{display:flex}
+#srch-box{background:#1A1D24;border:1px solid var(--accent);border-radius:5px;
+  padding:14px 16px;width:360px;display:flex;flex-direction:column;gap:8px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6)}
+#srch-input{background:#0B0C10;color:var(--text);border:1px solid var(--border);
+  border-radius:3px;padding:7px 10px;font-family:inherit;font-size:13px;width:100%}
+#srch-hint{color:var(--muted);font-size:10px}
+#srch-result{color:var(--accent);font-size:11px;min-height:14px}
+/* tape filter */
+#tape-flt{display:block;background:#1A1D24;color:var(--text);
+  border:none;border-bottom:1px solid var(--border);
+  padding:3px 8px;font-family:inherit;font-size:10px;width:100%}
+#tape-flt:focus{outline:none;border-bottom-color:var(--accent)}
+/* scrubber tick marks */
+#scr-wrap{position:relative;width:100%}
+#bk-ticks{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none}
+.bk-tick{position:absolute;top:0;bottom:0;width:2px;background:var(--trade);opacity:.75}
+/* chart crosshair tooltip */
+#xhair-tip{position:fixed;background:#1A1D24;border:1px solid var(--border);
+  color:var(--text);font-size:10px;line-height:1.6;padding:4px 8px;border-radius:3px;
+  pointer-events:none;display:none;z-index:1000;white-space:pre;
+  font-family:'SF Mono','Roboto Mono',Consolas,monospace}
+/* comparison panel */
+#cmp-panel{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--border);
+  max-height:90px;overflow-y:auto}
+.cmp-row{display:flex;justify-content:space-between;align-items:center;
+  padding:2px 8px;border-bottom:1px solid #0D0F14}
+.cmp-pos{color:var(--bid);font-size:10px;font-variant-numeric:tabular-nums}
+.cmp-neg{color:var(--ask);font-size:10px;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -199,8 +240,32 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
   <input type="number" class="ji" id="jf" placeholder="frame" min="0"
          onkeydown="if(event.key==='Enter')jumpFrame()">
   <button class="btn" onclick="jumpFrame()">Go</button>
+  <span class="sep">|</span>
+  <span class="lbl">Event#:</span>
+  <input type="number" class="ji" id="jeid" placeholder="id" min="0"
+         onkeydown="if(event.key==='Enter')jumpEventId()" style="width:52px">
+  <button class="btn" onclick="jumpEventId()">Go</button>
+  <span class="sep">|</span>
+  <button class="btn" id="bk-btn" onclick="toggleBookmark()" title="Bookmark (b)">&#9873;</button>
+  <button class="btn" onclick="prevBookmark()" title="Prev bookmark ([)">[</button>
+  <button class="btn" onclick="nextBookmark()" title="Next bookmark (])">]</button>
+  <span class="sep">|</span>
+  <button class="btn" id="cmp-btn" onclick="setCmp()" title="Set comparison anchor (c)">Cmp</button>
+  <button class="btn" onclick="clearCmp()" title="Clear comparison (C)">&#215;</button>
+  <span class="sep">|</span>
+  <button class="btn" onclick="exportSnapshot()" title="Export frame JSON (e)">&#8595;JSON</button>
+  <button class="btn" onclick="openSearch()" title="Search (/)">&#128269;</button>
   <span class="fi" id="fi">&#8212;</span>
 </header>
+<div id="srch-overlay">
+  <div id="srch-box">
+    <input id="srch-input" placeholder="event_id:#N  or  ts:NANOSECONDS  or  frame number"
+           oninput="srchPreview(this.value)" onkeydown="srchKey(event)">
+    <div id="srch-hint">Enter to jump &nbsp;&middot;&nbsp; Esc to close</div>
+    <div id="srch-result"></div>
+  </div>
+</div>
+<div id="xhair-tip"></div>
 <div class="content">
   <div class="lcol">
     <div class="book-panel">
@@ -217,6 +282,20 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
     <div class="sigs-panel">
       <div class="phdr"><span class="ptitle">SIGNALS</span></div>
       <div id="sig-panel"></div>
+    </div>
+    <div id="cmp-panel">
+      <div class="phdr">
+        <span class="ptitle">COMPARISON</span>
+        <span class="lbl" id="cmp-anchor"></span>
+      </div>
+      <div id="cmp-list"></div>
+    </div>
+    <div class="bk-panel" id="bk-panel">
+      <div class="phdr">
+        <span class="ptitle">BOOKMARKS</span>
+        <span class="lbl" id="bk-count"></span>
+      </div>
+      <div id="bk-list"></div>
     </div>
   </div>
   <div class="rcol">
@@ -273,12 +352,16 @@ select.flt{background:#1A1D24;color:var(--text);border:1px solid var(--border);
     </div>
     <div class="tape" id="tape">
       <div class="phdr"><span class="ptitle">EVENT TAPE</span></div>
+      <input id="tape-flt" placeholder="filter by type / id" oninput="renderTape()">
       <div id="tape-list"></div>
     </div>
   </div>
 </div>
 <div class="scr-bar">
-  <canvas id="scrubber"></canvas>
+  <div id="scr-wrap">
+    <canvas id="scrubber"></canvas>
+    <div id="bk-ticks"></div>
+  </div>
   <div class="scr-lbl">
     <span>0</span>
     <span id="scr-mid">&#8212;</span>
@@ -296,6 +379,204 @@ const FRAMES=)VHTML";
     html += R"VHTML(;
 // ── state ──────────────────────────────────────────────────────────────────
 var idx=0,playing=false,playTmr=null,speedMs=200,flt='ALL',showHm=false;
+var bookmarks=[];
+var xhairFrac=null;
+var cmpIdx=-1;
+var CHART_IDS=['chart-spread','chart-imbalance','chart-ofi',
+               'chart-microprice','chart-liqslope','chart-cancelrate'];
+var CHART_KEYS=['spread','imbalance','ofi','microprice','liquidity_slope','cancel_rate'];
+var CHART_DPS=[3,4,4,4,4,4];
+
+// ── bookmarks ──────────────────────────────────────────────────────────────
+function loadBookmarks(){
+  try{var s=localStorage.getItem('mse_bk');if(s)bookmarks=JSON.parse(s);}catch(ex){}
+}
+function saveBookmarks(){
+  try{localStorage.setItem('mse_bk',JSON.stringify(bookmarks));}catch(ex){}
+}
+function toggleBookmark(){
+  var i=bookmarks.indexOf(idx);
+  if(i>=0)bookmarks.splice(i,1);
+  else{bookmarks.push(idx);bookmarks.sort(function(a,b){return a-b;});}
+  saveBookmarks();
+  document.getElementById('bk-btn').className='btn'+(bookmarks.indexOf(idx)>=0?' active':'');
+}
+function prevBookmark(){
+  stopPlay();
+  for(var i=bookmarks.length-1;i>=0;i--){if(bookmarks[i]<idx){nav(bookmarks[i]);return;}}
+}
+function nextBookmark(){
+  stopPlay();
+  for(var i=0;i<bookmarks.length;i++){if(bookmarks[i]>idx){nav(bookmarks[i]);return;}}
+}
+function renderBookmarkPanel(){
+  var btn=document.getElementById('bk-btn');
+  if(btn)btn.className='btn'+(bookmarks.indexOf(idx)>=0?' active':'');
+  var el=document.getElementById('bk-list');
+  if(!el)return;
+  var cnt=document.getElementById('bk-count');
+  if(cnt)cnt.textContent=bookmarks.length?String(bookmarks.length):'';
+  if(bookmarks.length===0){
+    el.innerHTML='<div style="padding:3px 8px;color:var(--muted);font-size:10px">No bookmarks &mdash; press <b>b</b> to add</div>';
+    return;
+  }
+  var h='';
+  for(var i=0;i<bookmarks.length;i++){
+    var bi=bookmarks[i],f=FRAMES[bi],isCur=(bi===idx);
+    h+='<div class="bk-row'+(isCur?' bk-cur':'')+'" onclick="stopPlay();nav('+bi+')">'+
+       '<div class="bk-dot"></div>'+
+       '<span>Frame '+bi+'</span>'+
+       '<span style="margin-left:auto;color:var(--muted)">'+f.event_type+' #'+f.event_id+'</span>'+
+       '</div>';
+  }
+  el.innerHTML=h;
+  // Tick marks on scrubber
+  var bt=document.getElementById('bk-ticks');
+  if(bt&&FRAMES.length>1){
+    var th='';
+    for(var j=0;j<bookmarks.length;j++){
+      var pct=((bookmarks[j]/(FRAMES.length-1))*100).toFixed(3);
+      th+='<div class="bk-tick" style="left:'+pct+'%"></div>';
+    }
+    bt.innerHTML=th;
+  }
+}
+
+// ── jump to event id ────────────────────────────────────────────────────────
+function jumpEventId(){
+  stopPlay();
+  var v=parseInt(document.getElementById('jeid').value,10);
+  if(isNaN(v))return;
+  for(var i=0;i<FRAMES.length;i++){
+    if(FRAMES[i].event_id===v){nav(i);return;}
+  }
+  document.getElementById('fi').textContent='Event #'+v+' not found';
+}
+
+// ── search overlay ──────────────────────────────────────────────────────────
+function openSearch(){
+  var o=document.getElementById('srch-overlay');
+  if(!o)return;
+  o.classList.add('vis');
+  var inp=document.getElementById('srch-input');
+  if(inp){inp.value='';inp.focus();}
+  document.getElementById('srch-result').textContent='';
+}
+function closeSearch(){
+  var o=document.getElementById('srch-overlay');
+  if(o)o.classList.remove('vis');
+}
+function srchResolve(q){
+  q=(q||'').trim();
+  if(!q)return null;
+  var m;
+  // event_id:#N or event_id:N
+  if((m=q.match(/^(?:event_id:|#)(\d+)$/i))){
+    var eid=parseInt(m[1],10);
+    for(var i=0;i<FRAMES.length;i++){if(FRAMES[i].event_id===eid)return i;}
+    return -1;
+  }
+  // ts:NANOSECONDS — compare as numeric strings to avoid float precision loss
+  if((m=q.match(/^ts:(\d+)$/i))){
+    var tsStr=m[1];
+    var best=-1,bestDiff='';
+    for(var j=0;j<FRAMES.length;j++){
+      var fts=String(FRAMES[j].exchange_timestamp);
+      var diff=numStrDiff(fts,tsStr);
+      if(best<0||diff<bestDiff){best=j;bestDiff=diff;}
+    }
+    return best;
+  }
+  // Plain integer: frame index
+  var n=parseInt(q,10);
+  if(!isNaN(n)&&n>=0&&n<FRAMES.length)return n;
+  return -1;
+}
+// Unsigned absolute difference of two non-negative decimal strings (as BigInt if available)
+function numStrDiff(a,b){
+  try{var ba=BigInt(a),bb=BigInt(b);return ba>bb?ba-bb:bb-ba;}catch(ex){}
+  // Fallback: parse as float (loses last ~3 ns for large timestamps)
+  return Math.abs(parseFloat(a)-parseFloat(b));
+}
+function srchPreview(q){
+  var r=srchResolve(q);
+  var el=document.getElementById('srch-result');
+  if(!el)return;
+  if(r===null){el.textContent='';return;}
+  if(r<0){el.textContent='Not found';el.style.color='var(--ask)';return;}
+  var f=FRAMES[r];
+  el.style.color='var(--accent)';
+  el.textContent='Frame '+r+' \u00b7 event_id='+f.event_id+' \u00b7 '+f.event_type;
+}
+function srchKey(e){
+  if(e.key==='Escape'){closeSearch();return;}
+  if(e.key==='Enter'){
+    var r=srchResolve(document.getElementById('srch-input').value);
+    if(r!==null&&r>=0){nav(r);closeSearch();}
+  }
+}
+
+// ── frame snapshot export ────────────────────────────────────────────────────
+function exportSnapshot(){
+  var f=FRAMES[idx];
+  var blob=new Blob([JSON.stringify(f,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='frame_'+idx+'_ev'+f.event_id+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},800);
+}
+
+// ── before/after comparison ──────────────────────────────────────────────────
+function setCmp(){
+  cmpIdx=idx;
+  var btn=document.getElementById('cmp-btn');
+  if(btn)btn.className='btn active';
+  render();
+}
+function clearCmp(){
+  cmpIdx=-1;
+  var btn=document.getElementById('cmp-btn');
+  if(btn)btn.className='btn';
+  render();
+}
+function renderCmp(){
+  var anch=document.getElementById('cmp-anchor');
+  var list=document.getElementById('cmp-list');
+  if(!list)return;
+  if(cmpIdx<0||cmpIdx===idx){
+    if(anch)anch.textContent=cmpIdx<0?'':'At anchor';
+    list.innerHTML='<div style="padding:3px 8px;color:var(--muted);font-size:10px">Press <b>c</b> to set anchor frame</div>';
+    return;
+  }
+  if(anch)anch.textContent='vs Frame '+cmpIdx;
+  var a=FRAMES[cmpIdx],b=FRAMES[idx];
+  var fields=[
+    ['\u0394Spread',    'spread',          3],
+    ['\u0394Mid',       'mid',             2],
+    ['\u0394Microprice','microprice',      4],
+    ['\u0394Imbalance', 'imbalance',       6],
+    ['\u0394OFI',       'ofi',             6],
+    ['\u0394DepthRatio','depth_ratio',     4],
+    ['\u0394CancelRate','cancel_rate',     6],
+    ['\u0394LiqSlope',  'liquidity_slope', 6]
+  ];
+  var h='';
+  for(var i=0;i<fields.length;i++){
+    var lbl=fields[i][0],key=fields[i][1],dp=fields[i][2];
+    var av=a[key],bv=b[key];
+    if(av===null||bv===null||av===undefined||bv===undefined){
+      h+='<div class="cmp-row"><span class="sl">'+lbl+'</span><span class="sv">\u2014</span></div>';
+      continue;
+    }
+    var delta=bv-av;
+    var cls=delta>0?'cmp-pos':delta<0?'cmp-neg':'sv';
+    var sign=delta>0?'+':'';
+    h+='<div class="cmp-row"><span class="sl">'+lbl+'</span>'+
+       '<span class="'+cls+'">'+sign+delta.toFixed(dp)+'</span></div>';
+  }
+  list.innerHTML=h;
+}
 
 // ── utils ───────────────────────────────────────────────────────────────────
 function fmt(v,dp){
@@ -315,8 +596,16 @@ function fltIdxs(){
 
 // ── navigation ──────────────────────────────────────────────────────────────
 function nav(n){idx=clamp(n,0,FRAMES.length-1);render();}
-function goFirst(){stopPlay();nav(0);}
-function goLast(){stopPlay();nav(FRAMES.length-1);}
+function goFirst(){
+  stopPlay();
+  var fi=fltIdxs();
+  nav(fi?fi[0]:0);
+}
+function goLast(){
+  stopPlay();
+  var fi=fltIdxs();
+  nav(fi?fi[fi.length-1]:FRAMES.length-1);
+}
 function goNext(){
   stopPlay();
   var fi=fltIdxs();
@@ -545,6 +834,21 @@ function drawChart(cid,key,color,dp){
       ctx.fillStyle=color;ctx.fill();
     }
   }
+
+  // crosshair overlay
+  if(xhairFrac!==null){
+    var xhx=pL+(W-pL-pR)*xhairFrac;
+    ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(xhx,pT);ctx.lineTo(xhx,H-pB);ctx.stroke();
+    ctx.setLineDash([]);
+    var xhi=Math.round(xhairFrac*(vals.length-1));
+    var xhv=vals[xhi];
+    if(xhv!==null){
+      var xhy=toY(xhv);
+      ctx.beginPath();ctx.arc(xhx,xhy,2.5,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,.55)';ctx.fill();
+    }
+  }
   return true;
 }
 
@@ -557,6 +861,50 @@ function renderCharts(){
   drawChart('chart-cancelrate','cancel_rate',     '#6CB8FF',4);
   if(!ok)setTimeout(render,60);
 }
+
+// ── chart crosshair hover ──────────────────────────────────────────────────
+(function(){
+  function onMove(e){
+    var canvas=e.currentTarget;
+    var rect=canvas.getBoundingClientRect();
+    xhairFrac=clamp((e.clientX-rect.left)/rect.width,0,1);
+    // Build tooltip: frame + all signal values at hover position
+    var start=Math.max(0,idx-CWIN+1);
+    var nF=idx-start+1;
+    var hfi=start+Math.round(xhairFrac*(nF-1));
+    hfi=clamp(hfi,0,FRAMES.length-1);
+    var f=FRAMES[hfi];
+    if(!f){return;}
+    var lines='Frame '+hfi+' \u00b7 ev#'+f.event_id+' \u00b7 '+f.event_type;
+    for(var ci=0;ci<CHART_KEYS.length;ci++){
+      var v=f[CHART_KEYS[ci]];
+      if(v!==null&&v!==undefined&&isFinite(v)){
+        lines+='\n'+CHART_KEYS[ci]+': '+v.toFixed(CHART_DPS[ci]);
+      }
+    }
+    var tip=document.getElementById('xhair-tip');
+    if(tip){
+      tip.style.display='block';
+      tip.style.left=(e.clientX+14)+'px';
+      tip.style.top=(e.clientY-6)+'px';
+      tip.textContent=lines;
+    }
+    renderCharts();
+  }
+  function onLeave(){
+    xhairFrac=null;
+    var tip=document.getElementById('xhair-tip');
+    if(tip)tip.style.display='none';
+    renderCharts();
+  }
+  for(var ci=0;ci<CHART_IDS.length;ci++){
+    var el=document.getElementById(CHART_IDS[ci]);
+    if(el){
+      el.addEventListener('mousemove',onMove);
+      el.addEventListener('mouseleave',onLeave);
+    }
+  }
+})();
 
 // ── render: liquidity heatmap ─────────────────────────────────────────────────
 // X axis = time (frames in window), Y axis = price, colour = bid/ask volume.
@@ -659,16 +1007,27 @@ function drawHeatmap(){
 
 // ── render: event tape ────────────────────────────────────────────────────────
 function renderTape(){
+  var tfEl=document.getElementById('tape-flt');
+  var tfVal=tfEl?tfEl.value.trim().toLowerCase():'';
   var start=Math.max(0,idx-39);
   var rows='';
   for(var i=start;i<=idx;i++){
     var f=FRAMES[i];
+    // event-type filter (same filter that governs Next/Prev/Play)
+    if(flt!=='ALL'&&f.event_type!==flt)continue;
+    // tape text search filter
+    if(tfVal){
+      var hay=(String(f.event_id)+' '+f.event_type).toLowerCase();
+      if(hay.indexOf(tfVal)<0)continue;
+    }
     var isCur=(i===idx);
+    var isBm=(bookmarks.indexOf(i)>=0);
     var px=f.is_trade&&f.trade?f.trade.price:
       (f.best_bid!==null?f.best_bid:(f.best_ask!==null?f.best_ask:'\u2014'));
     rows+='<div class="tape-row'+(isCur?' cur':'')+'" onclick="nav('+i+')">'+
       '<span class="tet et-'+f.event_type+'">'+f.event_type+'</span>'+
       '<span class="tep">'+px+'</span>'+
+      (isBm?'<span style="color:var(--trade);font-size:9px">\u2605</span>':'')+
       '<span class="teid">#'+f.event_id+'</span>'+
       '</div>';
   }
@@ -689,21 +1048,33 @@ function renderScrubber(){
   ctx.fillStyle='#0A0B0E';ctx.fillRect(0,0,W,H);
   if(n<2)return;
 
+  // Build filter membership set (O(1) lookup per frame in bucket pass)
+  var fltSet=null;
+  if(flt!=='ALL'){
+    fltSet={};
+    for(var fs=0;fs<FRAMES.length;fs++){
+      if(FRAMES[fs].event_type===flt)fltSet[fs]=1;
+    }
+  }
+
   // bucket pass — one canvas-column = one bucket
   var bucks=Math.min(W,n);var bw=W/bucks;
   for(var b=0;b<bucks;b++){
-    var fi=Math.floor(b*n/bucks);
-    var fe=Math.min(n,Math.floor((b+1)*n/bucks)+1);
-    var hasTrade=false,regime='normal';
-    for(var i=fi;i<fe;i++){
+    var bf=Math.floor(b*n/bucks);
+    var be=Math.min(n,Math.floor((b+1)*n/bucks)+1);
+    var hasTrade=false,regime='normal',hasMatch=!fltSet;
+    for(var i=bf;i<be;i++){
       if(FRAMES[i].is_trade)hasTrade=true;
       regime=FRAMES[i].regime||'normal';
+      if(fltSet&&fltSet[i])hasMatch=true;
     }
     var x=b*bw;
     if(regime==='stressed'){ctx.fillStyle='rgba(255,92,92,.07)';ctx.fillRect(x,0,bw+.5,H);}
     else if(regime==='tight'){ctx.fillStyle='rgba(46,204,113,.05)';ctx.fillRect(x,0,bw+.5,H);}
     // trade density bar in bottom 40%
     if(hasTrade){ctx.fillStyle='rgba(245,158,11,.4)';ctx.fillRect(x,H*.6,bw+.5,H*.4);}
+    // dim non-matching buckets when filter is active
+    if(fltSet&&!hasMatch){ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(x,0,bw+.5,H);}
   }
 
   // playhead fill + cursor
@@ -720,10 +1091,10 @@ function render(){
   if(!FRAMES||FRAMES.length===0){
     document.getElementById('fi').textContent='No frames loaded.';return;
   }
-  renderInfo();renderBadge();renderBook();renderSigs();
+  renderInfo();renderBadge();renderBook();renderSigs();renderCmp();
   renderCharts();
   if(showHm)drawHeatmap();
-  renderTape();renderScrubber();
+  renderTape();renderScrubber();renderBookmarkPanel();
 }
 
 // ── scrubber click/drag ───────────────────────────────────────────────────────
@@ -753,11 +1124,22 @@ document.addEventListener('keydown',function(e){
   else if(e.key==='Home')goFirst();
   else if(e.key==='End')goLast();
   else if(e.key==='h')toggleHeatmap();
+  else if(e.key==='b')toggleBookmark();
+  else if(e.key==='[')prevBookmark();
+  else if(e.key===']')nextBookmark();
+  else if(e.key==='e')exportSnapshot();
+  else if(e.key==='c')setCmp();
+  else if(e.key==='C')clearCmp();
+  else if(e.key==='/')   {e.preventDefault();openSearch();}
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){closeSearch();}
 });
 
 window.addEventListener('resize',render);
 
 // ── init ──────────────────────────────────────────────────────────────────────
+loadBookmarks();
 requestAnimationFrame(render);
 </script>
 </body>

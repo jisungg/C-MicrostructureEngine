@@ -1,17 +1,52 @@
 # VisualizationLayer
 
-A replay-first, deterministic visualization layer built directly on top of
-`MicrostructureEngine`. All frame data is derived exclusively from the real
-engine — no analytics are duplicated or approximated here.
+A replay-first, deterministic visualization layer built directly on top of `MicrostructureEngine`.
+
+All frame data is derived from real engine state. The visualization code captures and renders engine output; it does not reimplement core microstructure analytics.
+
+## Current Status
+
+`VisualizationLayer` is now a working replay and inspection layer, not just a placeholder plan.
+
+Today it provides:
+
+- frame capture from real engine replay
+- frame extraction into deterministic `VisualizationFrame` objects
+- CSV-backed replay input
+- simple and realistic synthetic event generation
+- terminal rendering
+- deterministic JSON export
+- self-contained HTML replay export
+- a demo executable that can run built-in, CSV, or synthetic replays
+
+The current HTML viewer includes:
+
+- order book ladder rendering
+- signal panels
+- time-series charts
+- a liquidity heatmap toggle
+- an event tape
+- a scrubber
+- frame-index jump
+- event-type-filtered navigation
+
+It is still not the finished analyst workflow layer. The current implementation does not yet include:
+
+- jump-to-timestamp
+- jump-to-event-id
+- bookmarks or markers
+- saved sessions or session restore
+- before/after comparison views
+- browser automation coverage of the replay UI
 
 ---
 
 ## Where it lives
 
-```
+```text
 c++/
 ├── CMakeLists.txt              ← root build (engine + visualization)
-├── MicrostructureEngine/       ← existing engine (unchanged)
+├── MicrostructureEngine/       ← engine
 └── VisualizationLayer/
     ├── include/visualization/  ← public headers
     ├── src/                    ← implementations
@@ -25,46 +60,48 @@ c++/
 
 ## How it integrates with MicrostructureEngine
 
-The primary integration components are `FrameCapture` and `FrameExtractor`.
+The main integration path is:
 
-```
-MicrostructurePipeline::process(Event)     ← engine processes each event
-       ↓  PipelineResult + book state
-FrameExtractor::extract(...)               ← converts engine state to VisualizationFrame
-       ↓  VisualizationFrame
+```text
+Event source
+  (built-in demo / CSV / synthetic generator)
+        ↓
+FrameCapture
+  (owns MicrostructurePipeline and replays events)
+        ↓
+FrameExtractor
+  (converts engine state to VisualizationFrame)
+        ↓
+VisualizationFrame[]
+        ↓
 ReplayWalker / JsonSerializer / HtmlExporter / TerminalRenderer
 ```
 
-`FrameCapture` owns the `MicrostructurePipeline` and drives the replay loop.
-`FrameExtractor` is the only component that calls engine methods directly.
+`FrameExtractor` is the main engine-state-to-frame adapter.
 
-`VisualizationFrame` mirrors several engine enum types (`EventType`, `Venue`,
-`LiquidityRegime`, `TradeAggressor`) for convenience — downstream components
-reference these through the frame rather than importing engine headers directly.
-The synthetic generators (`SyntheticEventGenerator`, `RealisticSyntheticGenerator`)
-necessarily import engine event types to produce valid engine inputs.
+`FrameCapture`, `CsvEventLoader`, and the synthetic generators also use engine types directly because they construct or replay `microstructure::Event` streams. Downstream rendering and export components consume `VisualizationFrame`.
 
 ### What each frame contains
 
 | Field | Source |
 |---|---|
 | `best_bid` / `best_ask` | `PipelineResult::book` (BookSummary) |
-| `spread`, `mid` | computed from `best_bid` / `best_ask` |
+| `spread`, `mid` | derived from `best_bid` / `best_ask` |
 | `microprice` | `FeatureSnapshot::microprice` |
 | `bid_levels[]` / `ask_levels[]` | `OrderBookStateEngine::top_levels()` |
 | `imbalance`, `ofi`, `depth_ratio` | `FeatureSnapshot` |
 | `cancel_rate`, `queue_half_life` | `FeatureSnapshot::queue` |
 | `liquidity_slope` | `FeatureSnapshot::liquidity_slope` |
-| `regime` | `FeatureSnapshot::regime` (LiquidityRegime) |
-| `is_trade`, `trade` | `PipelineResult::trade` (TradeExecution) |
+| `regime` | `FeatureSnapshot::regime` |
+| `is_trade`, `trade` | `PipelineResult::trade` |
 | `last_trade_aggressor` | `FeatureSnapshot::last_trade_aggressor` |
-| `network_latency` / `gateway_latency` | `FeatureSnapshot::latency` |
+| `network_latency` / `gateway_latency` / `processing_latency` | `FeatureSnapshot::latency` |
 
 ---
 
 ## How to build
 
-### Option A — root build (recommended, builds everything)
+### Option A — root build (recommended)
 
 ```bash
 cd c++
@@ -72,7 +109,7 @@ cmake -S . -B build_viz
 cmake --build build_viz --parallel 8
 ```
 
-### Option B — engine only (unchanged from before)
+### Option B — engine only
 
 ```bash
 cd c++/MicrostructureEngine
@@ -84,50 +121,40 @@ cmake --build build --parallel 8
 
 ## How to run the demo
 
+### Built-in demo scenario
+
 ```bash
-# From c++/
 ./build_viz/VisualizationLayer/viz_demo replay.html
 ```
 
-This replays a built-in 20-event market scenario and:
-1. Prints terminal frames (first 3, last 3, final frame)
-2. Exports `replay.html` — open in any browser
+This replays a built-in 20-event market scenario, prints terminal previews, and exports an HTML replay artifact.
 
-With a custom output path:
+### CSV-backed replay
+
 ```bash
-./build_viz/VisualizationLayer/viz_demo /path/to/output.html
+./build_viz/VisualizationLayer/viz_demo replay.html --from-csv /path/to/events.csv
 ```
+
+`CsvEventLoader` is a lightweight source for real event files. The CSV must already be in replay order; ordering and semantic validity are still enforced by the engine pipeline during capture.
 
 ### Simple synthetic mode
 
-Generate N events using `SyntheticEventGenerator`:
-
 ```bash
-# 2000 simple synthetic events → replay.html
 ./build_viz/VisualizationLayer/viz_demo replay.html --synthetic 2000
 ```
 
-The simple generator uses uniform-random event-type selection with basic shadow-book
-tracking. Useful for load/stress testing and baseline validation.
+`SyntheticEventGenerator` produces deterministic, valid event streams for baseline replay, export, and stress testing.
 
 ### Realistic synthetic mode
 
-Generate N events using `RealisticSyntheticGenerator`:
-
 ```bash
-# 2000 realistic events → replay.html
 ./build_viz/VisualizationLayer/viz_demo replay.html --realistic 2000
-
-# 10000 events to a custom path
 ./build_viz/VisualizationLayer/viz_demo /tmp/big_replay.html --realistic 10000
 ```
 
-The realistic generator models actual LOB dynamics: near-touch order clustering,
-volatility-driven mid-price, imbalance-biased trade direction, stale-quote
-cancellation, regime switching, and post-trade refill bursts. The HTML
-visualization produced shows evolving spread, depth changes, and signal variation.
+`RealisticSyntheticGenerator` adds regime-aware, imbalance-aware, and near-touch order-flow behavior for more realistic replay scenarios.
 
-Both modes are fully deterministic (default seed=42).
+Both synthetic modes are deterministic by seed.
 
 ---
 
@@ -136,127 +163,127 @@ Both modes are fully deterministic (default seed=42).
 ```bash
 open replay.html        # macOS
 xdg-open replay.html    # Linux
-# or double-click the file in Finder
 ```
 
-**HTML replay controls:**
+## HTML replay controls
 
 | Control | Action |
 |---|---|
 | `First` / `Last` | Jump to first or last frame |
 | `Prev` / `Next` | Step one frame |
-| `Play` / `Pause` | Auto-advance at 200ms/frame |
+| `Play` / `Pause` | Auto-advance at the current speed |
+| Speed slider | Change autoplay interval |
+| `Heatmap` | Toggle the liquidity heatmap panel |
+| Filter select | Restrict `Prev` / `Next` / autoplay traversal by event type |
 | Jump input + `Go` | Jump to a specific frame index |
-| `←` / `→` arrow keys | Prev / Next |
+| Scrubber click or drag | Seek to a replay position by frame index |
+| `←` / `→` | Prev / Next |
 | `Space` | Play / Pause |
 | `Home` / `End` | First / Last |
+| `h` | Toggle heatmap |
 
-**What is shown:**
+Important note: the current filter affects navigation behavior, not full panel visibility. The viewer still renders the full tape and scrubber over the whole frame sequence.
 
-- Order book ladder (bid in green, ask in red, volume bars)
-- Spread · mid · microprice line
-- Signal panel: imbalance, OFI, depth ratio, cancel rate, queue half-life, liquidity slope, regime, aggressor
-- Trade badge (when the current frame is a trade execution)
+## What the HTML viewer currently shows
+
+- order book ladder with bid/ask depth bars
+- trade badge on trade frames
+- signal panel for spread, mid, microprice, imbalance, OFI, depth ratio, cancel rate, queue half-life, liquidity slope, regime, and aggressor
+- time-series charts for spread, imbalance, OFI, microprice, liquidity slope, and cancel rate
+- optional liquidity heatmap
+- event tape for recent frames
+- replay scrubber with trade-density and regime coloring
 
 ---
 
-## How to run terminal mode
+## Terminal mode
 
-The demo executable always runs terminal mode before exporting HTML.
-To print just a single frame from your own code:
+The demo executable always prints terminal previews before exporting HTML.
+
+To print a single frame from your own code:
 
 ```cpp
 #include "visualization/terminal_renderer.hpp"
 
 visualization::TerminalRenderer renderer;
-renderer.print_frame(frame);           // stdout
-std::string text = renderer.render_frame(frame);  // string API
+renderer.print_frame(frame);
+std::string text = renderer.render_frame(frame);
 ```
 
 ---
 
-## How to run all tests
+## How to run tests
 
-### Engine + visualization (from the repo root `c++/`)
+### Entire workspace
 
 ```bash
-# From c++/
 ctest --test-dir build_viz --output-on-failure
 ```
 
-### Engine + visualization (from an arbitrary working directory)
+### Visualization-specific executables
 
 ```bash
-ctest --test-dir /path/to/c++/build_viz --output-on-failure
-```
-
-### Engine only (standalone)
-
-```bash
-ctest --test-dir MicrostructureEngine/build --output-on-failure
-```
-
-### Individual visualization test suites
-
-```bash
-# Run from c++/
 ./build_viz/VisualizationLayer/viz_test_frame_extractor      <test_case>
 ./build_viz/VisualizationLayer/viz_test_replay_walker        <test_case>
 ./build_viz/VisualizationLayer/viz_test_exporters            <test_case>
 ./build_viz/VisualizationLayer/viz_test_synthetic_generator  <test_case>
 ./build_viz/VisualizationLayer/viz_test_realistic_generator  <test_case>
+./build_viz/VisualizationLayer/viz_test_event_loader         <test_case>
+./build_viz/VisualizationLayer/viz_test_boundaries           <test_case>
 ```
+
+The visualization layer is covered by focused tests for:
+
+- frame extraction
+- replay walking
+- JSON and HTML export
+- terminal rendering
+- simple and realistic synthetic generators
+- CSV loading
+- empty and boundary cases
 
 ---
 
 ## JSON frame schema
 
-Schema version: **1** (defined in `include/visualization/export_schema.hpp`).
+Schema version: **1** in `include/visualization/export_schema.hpp`.
 
-Increment `kSchemaVersion` whenever field names, types, or ordering change;
-this forces explicit test updates.
+The following keys are always present in each serialized frame object:
 
-### Required fields (always present)
-
-```
+```text
 schema_version       int
 frame_index          uint
 event_id             uint
 event_type           string  (ADD|CANCEL|MODIFY|TRADE|SNAPSHOT)
 venue                string  (NASDAQ|ARCA|BATS|IEX)
 exchange_timestamp   int64   ns
+best_bid             int64 | null
+best_ask             int64 | null
 best_bid_volume      int64
 best_ask_volume      int64
-spread               double  ticks
-mid                  double  ticks
-microprice           double  ticks
+spread               double | null
+mid                  double | null
+microprice           double | null
 imbalance            double
 ofi                  double
-depth_ratio          double
+depth_ratio          double | null
 cancel_rate          double
 queue_half_life      double
 liquidity_slope      double
-regime               string  (tight|normal|stressed|illiquid)
+regime               string
 is_trade             bool
-last_trade_aggressor string  (UNKNOWN|BUY_AGGRESSOR|SELL_AGGRESSOR)
-network_latency      int64   ns
-gateway_latency      int64   ns
-processing_latency   int64   ns
+trade                object | null
+last_trade_aggressor string
+network_latency      int64
+gateway_latency      int64
+processing_latency   int64
 bid_levels           array<DepthLevel>
 ask_levels           array<DepthLevel>
 ```
 
-### Optional fields (null when absent)
+### DepthLevel
 
-```
-best_bid   int64 | null   (null when book is one-sided or empty)
-best_ask   int64 | null
-trade      object | null  (present iff is_trade == true)
-```
-
-### DepthLevel object
-
-```
+```text
 price        int64
 volume       int64
 queue_depth  uint
@@ -265,9 +292,9 @@ cancel_rate  double
 fill_rate    double
 ```
 
-### TradeExecution object (within "trade")
+### TradeExecution
 
-```
+```text
 price                    int64
 size                     int64
 resting_side             string
@@ -278,106 +305,59 @@ remaining_at_price_after int64
 
 ### Ordering guarantees
 
-- `bid_levels[0]` = best bid (highest price)
-- `ask_levels[0]` = best ask (lowest price)
-- Frame array ordered by `frame_index` ascending
+- frame array order is `frame_index` ascending
+- `bid_levels[0]` is the best bid
+- `ask_levels[0]` is the best ask
 
 ---
 
-## SyntheticEventGenerator
+## Synthetic generators
 
-`SyntheticEventGenerator` produces deterministic, valid `microstructure::Event`
-sequences for testing and demonstration. All generated events satisfy the engine's
-validation rules (monotonic timestamps, unique IDs, no crossed-book adds,
-cancel/modify reference live orders only, trade sizes ≤ level volume).
+### `SyntheticEventGenerator`
 
-### API
+Produces deterministic, valid `microstructure::Event` sequences for baseline replay and export testing.
 
-```cpp
-#include "visualization/synthetic_event_generator.hpp"
+### `RealisticSyntheticGenerator`
 
-visualization::SyntheticConfig cfg;
-cfg.total_events          = 2'000;   // number of events to generate
-cfg.depth_levels          = 5;       // target levels per side
-cfg.add_probability       = 0.50;
-cfg.cancel_probability    = 0.15;
-cfg.trade_probability     = 0.20;
-cfg.modify_probability    = 0.10;    // remainder → more adds
-cfg.initial_mid_price     = 1'000;   // starting mid in ticks
-cfg.tick_size             = 1;
-cfg.order_size_min        = 100;
-cfg.order_size_max        = 1'000;
-cfg.price_drift_probability = 0.05; // per-event mid drift probability
-cfg.seed                  = 42;     // deterministic RNG seed
-cfg.venue                 = microstructure::Venue::Nasdaq;
+Produces deterministic, state-aware event sequences with:
 
-visualization::SyntheticEventGenerator gen{cfg};
-std::vector<microstructure::Event> events = gen.generate();
-```
+- near-touch order clustering
+- regime-aware dynamics
+- volatility-driven mid-price movement
+- imbalance-biased trade direction
+- stale-quote cancellation bias
+- post-trade refill behavior
 
-Calling `generate()` twice returns identical sequences. The generator resets its
-internal state at the start of each call.
-
-### Trade semantics
-
-Trade events use `order_id=0`, which instructs the engine to perform an anonymous
-fill (front-of-queue, no named-order priority check). This is the only safe way
-to generate trades without tracking queue position. See engine source
-`order_book.cpp` line ~367 for the relevant branch.
-
-### Shadow-book tracking
-
-The generator maintains a shadow copy of the order book to guarantee valid event
-references. When a trade consumes a price level, all tracked orders at that level
-are removed from the "safe" pool so they cannot be referenced by later Cancel or
-Modify events.
+Both generators reset internal state on `generate()` and return identical sequences for identical seeds and configs.
 
 ---
 
 ## Current limitations
 
-- Single-venue replay only (multi-venue `CrossVenueMicrostructurePipeline` not yet wired)
-- No live/real-time mode — replay from pre-built event vectors only
-- No file-based event stream ingestion (events must be constructed in code)
-- HTML replay speed fixed at 200ms/frame; no speed control UI
-- `testdata/` directory reserved but no file-based fixture tests yet
-- JS renderer uses ES5 for broadest compatibility; no TypeScript or bundling
-- No browser automation tests for HTML rendering (JSON layer is tested instead)
+- single-venue frame capture only; consolidated replay is not wired into this layer yet
+- CSV is the only file-backed replay source implemented today
+- no jump-to-timestamp or jump-to-event-id
+- no bookmarks, markers, saved sessions, or session restore
+- no before/after comparison mode
+- no browser automation or end-to-end DOM tests
+- filter semantics are currently navigation-oriented rather than full-panel filtering
 
 ---
 
 ## How to extend
 
-### Add live stepping from the pipeline
+### Add richer workflow state
 
-`FrameCapture::capture()` drives a full replay at once. For interactive
-stepping, instantiate `MicrostructurePipeline` directly and call
-`FrameExtractor::extract()` after each `pipeline.process(event)`.
+The next step above the current replay viewer is an explicit workflow/session layer for bookmarks, event-id/timestamp jumps, saved sessions, and comparison views.
 
-### Add multi-venue support
+### Add consolidated replay support
 
-Replace `MicrostructurePipeline` in `FrameCapture` with
-`CrossVenueMicrostructurePipeline`. The `FrameExtractor` interface is
-unchanged; depth ladder extraction still works via `BookView::top_levels()`.
+Wire `FrameCapture` to a consolidated pipeline path and extend the extractor contract for consolidated-book visualization.
 
-### Add file-based event ingestion
+### Add richer real-data ingestion
 
-Implement an `EventLoader` that reads a binary/CSV/JSON file and returns
-`std::vector<Event>`. Pass to `FrameCapture::capture()` unchanged.
+Implement additional `EventLoader` variants for other file formats or dataset stores.
 
-### Add file-based regression fixtures
+### Add browser-side regression coverage
 
-Place expected JSON snapshots in `testdata/` and add test cases to
-`test_exporters.cpp` that compare `serialize_frame()` output byte-for-byte.
-
-### Add a richer renderer
-
-The `HtmlExporter::render_html()` returns a `std::string`. Replace the
-embedded JS with a React/Chart.js renderer served from a local dev server,
-keeping the C++ JSON serialization layer unchanged.
-
-### Upgrade JSON to nlohmann/json
-
-The hand-rolled serializer in `JsonSerializer` is straightforward to replace.
-Add nlohmann/json via CMake `FetchContent` and update `json_serializer.cpp`.
-The schema contract in `export_schema.hpp` and the tests remain unchanged.
+Keep the deterministic JSON export layer and add DOM/runtime checks for the generated HTML viewer.

@@ -1,6 +1,7 @@
 #include "visualization/terminal_renderer.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <sstream>
@@ -15,6 +16,7 @@ TerminalRenderer::TerminalRenderer(TerminalConfig config)
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 std::string TerminalRenderer::fmt4(double v) {
+    if (!std::isfinite(v)) return " n/a";
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%.4f", v);
     return std::string{buf};

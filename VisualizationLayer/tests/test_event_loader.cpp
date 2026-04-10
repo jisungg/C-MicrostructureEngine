@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "microstructure/event.hpp"
@@ -31,8 +32,12 @@ void expect_eq(const A& a, const B& b, const std::string& msg) {
 }
 
 // Write a string to a temp file and return the path.
+// Uses PID + counter to avoid collisions when tests run in parallel.
 std::string write_tmp(const std::string& content) {
-    const std::string path = "/tmp/viz_csv_test_" + std::to_string(std::rand()) + ".csv";
+    static int counter = 0;
+    const std::string path = "/tmp/viz_csv_test_" +
+                             std::to_string(static_cast<long>(getpid())) +
+                             "_" + std::to_string(++counter) + ".csv";
     std::ofstream f{path};
     if (!f.is_open()) throw std::runtime_error("cannot create temp file: " + path);
     f << content;
@@ -232,6 +237,107 @@ void test_csv_error_bad_side() {
     expect_true(threw, "bad side must throw");
 }
 
+// ── csv_extra_columns ─────────────────────────────────────────────────────────
+// Lines with more than 10 fields are accepted: extra columns are silently ignored.
+void test_csv_extra_columns() {
+    const std::string csv =
+        "1,ADD,101,1000,500,BID,1000000000,1000000001,1000000002,NASDAQ,EXTRA_FIELD,MORE\n";
+    const std::string path = write_tmp(csv);
+    CsvEventLoader loader{path};
+    const auto events = loader.load();
+    std::remove(path.c_str());
+    expect_eq(events.size(), std::size_t{1}, "extra columns: event count");
+    expect_eq(events[0].event_id(), microstructure::EventId{1}, "extra columns: event_id");
+    expect_eq(events[0].venue(), Venue::Nasdaq, "extra columns: venue still parsed correctly");
+}
+
+// ── csv_trailing_comma ────────────────────────────────────────────────────────
+// A trailing comma produces an empty 11th field which is silently ignored
+// (same logic as extra_columns: only fields[0..9] are consumed).
+void test_csv_trailing_comma() {
+    const std::string csv =
+        "1,ADD,101,1000,500,BID,1000000000,1000000001,1000000002,NASDAQ,\n";
+    const std::string path = write_tmp(csv);
+    CsvEventLoader loader{path};
+    const auto events = loader.load();
+    std::remove(path.c_str());
+    expect_eq(events.size(), std::size_t{1}, "trailing comma: event count");
+    expect_eq(events[0].event_id(), microstructure::EventId{1}, "trailing comma: event_id");
+}
+
+// ── csv_empty_event_type ──────────────────────────────────────────────────────
+// An empty event_type field must throw (unknown event_type: '').
+void test_csv_empty_event_type() {
+    const std::string csv =
+        "1,,101,1000,500,BID,1000000000,1000000001,1000000002,NASDAQ\n";
+    const std::string path = write_tmp(csv);
+    CsvEventLoader loader{path};
+    bool threw = false;
+    try {
+        const auto events = loader.load();
+        (void)events;
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    std::remove(path.c_str());
+    expect_true(threw, "empty event_type must throw");
+}
+
+// ── csv_stress_large ──────────────────────────────────────────────────────────
+// Load a large CSV (500 events) through the full pipeline without crashing.
+void test_csv_stress_large() {
+    std::string csv =
+        "event_id,event_type,order_id,price,size,side,"
+        "exchange_ts,receive_ts,processed_ts,venue\n";
+    microstructure::Timestamp ts = 1'000'000'000LL;
+    for (int i = 1; i <= 500; ++i) {
+        const bool is_bid = (i % 2 == 1);
+        const long long px = is_bid ? 1000 : 1001;
+        const char* sd  = is_bid ? "BID" : "ASK";
+        char line[256];
+        std::snprintf(line, sizeof(line),
+            "%d,ADD,%d,%lld,100,%s,%lld,%lld,%lld,NASDAQ\n",
+            i, i, px, sd,
+            static_cast<long long>(ts),
+            static_cast<long long>(ts + 1),
+            static_cast<long long>(ts + 2));
+        csv += line;
+        ts += 1'000'000LL;
+    }
+
+    const std::string path = write_tmp(csv);
+    CsvEventLoader loader{path};
+    const auto events = loader.load();
+    std::remove(path.c_str());
+
+    expect_eq(events.size(), std::size_t{500}, "stress_large: event count");
+
+    // Must also pass through the full pipeline without throwing
+    FrameCapture capture;
+    const auto frames = capture.capture(events);
+    expect_eq(frames.size(), std::size_t{500}, "stress_large: frame count");
+}
+
+// ── csv_out_of_order ──────────────────────────────────────────────────────────
+// Non-monotonic exchange_timestamp must throw runtime_error.
+void test_csv_out_of_order() {
+    // Second row has a lower timestamp than the first — must be rejected.
+    const std::string csv =
+        "1,ADD,101,1000,500,BID,2000000000,2000000001,2000000002,NASDAQ\n"
+        "2,ADD,201,1001,300,ASK,1000000000,1000000001,1000000002,NASDAQ\n";
+    const std::string path = write_tmp(csv);
+    CsvEventLoader loader{path};
+    bool threw = false;
+    try {
+        const auto events = loader.load();
+        (void)events;
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    std::remove(path.c_str());
+    expect_true(threw, "out-of-order timestamps must throw");
+}
+
 // ── csv_whitespace_trimming ───────────────────────────────────────────────────
 void test_csv_whitespace_trimming() {
     const std::string csv = " 1 , ADD , 101 , 1000 , 500 , BID , 1000000000 , 1000000001 , 1000000002 , NASDAQ \n";
@@ -259,6 +365,11 @@ int run_test(const std::string& name) {
         else if (name == "csv_error_bad_event_type")   test_csv_error_bad_event_type();
         else if (name == "csv_error_bad_side")         test_csv_error_bad_side();
         else if (name == "csv_whitespace_trimming")    test_csv_whitespace_trimming();
+        else if (name == "csv_extra_columns")          test_csv_extra_columns();
+        else if (name == "csv_trailing_comma")         test_csv_trailing_comma();
+        else if (name == "csv_empty_event_type")       test_csv_empty_event_type();
+        else if (name == "csv_out_of_order")           test_csv_out_of_order();
+        else if (name == "csv_stress_large")           test_csv_stress_large();
         else {
             std::cerr << "UNKNOWN TEST: " << name << "\n";
             return 1;

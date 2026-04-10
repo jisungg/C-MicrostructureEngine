@@ -245,6 +245,162 @@ void test_html_no_inf_or_nan() {
     expect_true(!contains(html, ":Infinity"), "no Infinity in HTML output");
 }
 
+// ── Workflow feature presence tests ──────────────────────────────────────────
+// These verify that the HTML viewer contains the new analyst workflow elements.
+
+// Jump-to-event-id input is present in the HTML.
+void test_html_has_event_id_jump() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+    expect_true(contains(html, "id=\"jeid\""),         "event_id jump input present");
+    expect_true(contains(html, "jumpEventId()"),        "jumpEventId function called");
+}
+
+// Bookmark controls are present.
+void test_html_has_bookmarks() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+    expect_true(contains(html, "id=\"bk-btn\""),       "bookmark toggle button present");
+    expect_true(contains(html, "id=\"bk-panel\""),     "bookmark panel present");
+    expect_true(contains(html, "toggleBookmark()"),     "toggleBookmark function present");
+    expect_true(contains(html, "prevBookmark()"),       "prevBookmark function present");
+    expect_true(contains(html, "nextBookmark()"),       "nextBookmark function present");
+    expect_true(contains(html, "loadBookmarks()"),      "loadBookmarks called at init");
+    expect_true(contains(html, "localStorage"),         "localStorage used for persistence");
+}
+
+// Search overlay is present.
+void test_html_has_search_overlay() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+    expect_true(contains(html, "id=\"srch-overlay\""), "search overlay present");
+    expect_true(contains(html, "id=\"srch-input\""),   "search input present");
+    expect_true(contains(html, "openSearch()"),         "openSearch function present");
+    expect_true(contains(html, "srchResolve"),          "srchResolve function present");
+    // ts: search uses BigInt for nanosecond precision
+    expect_true(contains(html, "BigInt"),               "BigInt used for timestamp precision");
+}
+
+// Frame snapshot export is present.
+void test_html_has_export() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+    expect_true(contains(html, "exportSnapshot()"),    "exportSnapshot function present");
+    expect_true(contains(html, "createObjectURL"),     "blob download mechanism present");
+    expect_true(contains(html, "application/json"),    "JSON MIME type present");
+}
+
+// Event tape search filter is present.
+void test_html_has_tape_filter() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+    expect_true(contains(html, "id=\"tape-flt\""),     "tape filter input present");
+    expect_true(contains(html, "tape-flt"),             "tape filter referenced in JS");
+}
+
+// Chart crosshair hover is wired.
+void test_html_has_chart_crosshair() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+    expect_true(contains(html, "xhairFrac"),           "crosshair state variable present");
+    expect_true(contains(html, "id=\"xhair-tip\""),    "tooltip element present");
+    expect_true(contains(html, "CHART_IDS"),            "CHART_IDS array present");
+    expect_true(contains(html, "mousemove"),            "mousemove event listener present");
+}
+
+// ── Regression: spread/mid/microprice null for one-sided books ────────────────
+// Frame 0 of two_sided_frames() has only a bid → spread/mid/microprice must be
+// null, not a misleading 0.0, so the time-series charts correctly gap those frames.
+void test_json_one_sided_spread_null() {
+    const auto frames = two_sided_frames();
+    JsonSerializer ser;
+    const std::string json0 = ser.serialize_frame(frames[0]); // bid-only frame
+    expect_true(contains(json0, "\"spread\":null"),     "spread null on one-sided frame");
+    expect_true(contains(json0, "\"mid\":null"),        "mid null on one-sided frame");
+    expect_true(contains(json0, "\"microprice\":null"), "microprice null on one-sided frame");
+
+    // Two-sided frame must still emit numeric values
+    const std::string json1 = ser.serialize_frame(frames[1]); // both sides present
+    expect_true(!contains(json1, "\"spread\":null"),     "spread not null on two-sided frame");
+    expect_true(!contains(json1, "\"mid\":null"),        "mid not null on two-sided frame");
+    expect_true(!contains(json1, "\"microprice\":null"), "microprice not null on two-sided frame");
+}
+
+// ── Regression: terminal renderer must not print "inf" for any signal ─────────
+// When the book is one-sided (only bid), depth_ratio = +inf.  Before the fix,
+// fmt4 used "%.4f" which formatted infinity as "   inf".  After the fix it must
+// produce " n/a" so terminal output remains human-readable.
+void test_terminal_no_inf_signals() {
+    // Build a bid-only frame (frame 0 from two_sided_frames is the first Add, bid-only)
+    const auto frames = two_sided_frames();
+    TerminalRenderer r;
+    const std::string out0 = r.render_frame(frames[0]); // bid-only
+    expect_true(!contains(out0, "inf"), "no raw 'inf' in terminal output for one-sided book");
+    expect_true(!contains(out0, "nan"), "no raw 'nan' in terminal output");
+
+    // Two-sided frame should also render without inf/nan
+    const std::string out1 = r.render_frame(frames[1]);
+    expect_true(!contains(out1, "inf"), "no raw 'inf' in two-sided terminal output");
+}
+
+// ── html_has_comparison_mode ──────────────────────────────────────────────────
+// HTML must contain the before/after comparison panel elements and JS functions.
+void test_html_has_comparison_mode() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+
+    // Panel element
+    expect_true(contains(html, "cmp-panel"),   "html has cmp-panel");
+    expect_true(contains(html, "cmp-anchor"),  "html has cmp-anchor element");
+    expect_true(contains(html, "cmp-list"),    "html has cmp-list element");
+
+    // JS functions
+    expect_true(contains(html, "setCmp"),      "html has setCmp function");
+    expect_true(contains(html, "clearCmp"),    "html has clearCmp function");
+    expect_true(contains(html, "renderCmp"),   "html has renderCmp function");
+
+    // Keyboard shortcut wiring
+    expect_true(contains(html, "'c'"),         "html has 'c' key for setCmp");
+    expect_true(contains(html, "'C'"),         "html has 'C' key for clearCmp");
+
+    // Delta fields
+    expect_true(contains(html, "\\u0394Spread"),    "html has delta-spread label");
+    expect_true(contains(html, "\\u0394Imbalance"), "html has delta-imbalance label");
+    expect_true(contains(html, "cmp-pos"),          "html has cmp-pos CSS class");
+    expect_true(contains(html, "cmp-neg"),          "html has cmp-neg CSS class");
+}
+
+// ── html_filter_coherence ─────────────────────────────────────────────────────
+// goFirst / goLast must use fltIdxs(), not hard-coded 0 / FRAMES.length-1.
+void test_html_filter_coherence() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+
+    // The fixed goFirst must call fltIdxs() not nav(0) directly
+    expect_true(contains(html, "function goFirst"), "html has goFirst");
+    expect_true(contains(html, "function goLast"),  "html has goLast");
+    // Both functions must reference fltIdxs (filter-aware navigation)
+    // We check that the string "fltIdxs" appears inside goFirst's body
+    // by verifying it appears within close proximity of "goFirst" definition
+    const std::size_t goFirstPos = html.find("function goFirst");
+    const std::size_t goLastPos  = html.find("function goLast");
+    expect_true(goFirstPos != std::string::npos, "goFirst present");
+    expect_true(goLastPos  != std::string::npos, "goLast present");
+    // fltIdxs must appear after goFirst (in its body or after) before goNext
+    const std::size_t goNextPos  = html.find("function goNext");
+    expect_true(goNextPos != std::string::npos, "goNext present");
+    const std::string between = html.substr(goFirstPos, goNextPos - goFirstPos);
+    expect_true(contains(between, "fltIdxs"), "goFirst/goLast use fltIdxs");
+}
+
 // ── Runner ────────────────────────────────────────────────────────────────
 
 using TestFn = void(*)();
@@ -266,6 +422,16 @@ const TestCase TESTS[] = {
     {"html_contains_frames_json",   test_html_contains_frames_json},
     {"json_no_inf_or_nan",          test_json_no_inf_or_nan},
     {"html_no_inf_or_nan",          test_html_no_inf_or_nan},
+    {"json_one_sided_spread_null",  test_json_one_sided_spread_null},
+    {"terminal_no_inf_signals",     test_terminal_no_inf_signals},
+    {"html_has_event_id_jump",      test_html_has_event_id_jump},
+    {"html_has_bookmarks",          test_html_has_bookmarks},
+    {"html_has_search_overlay",     test_html_has_search_overlay},
+    {"html_has_export",             test_html_has_export},
+    {"html_has_tape_filter",        test_html_has_tape_filter},
+    {"html_has_chart_crosshair",    test_html_has_chart_crosshair},
+    {"html_has_comparison_mode",    test_html_has_comparison_mode},
+    {"html_filter_coherence",       test_html_filter_coherence},
 };
 
 } // namespace
