@@ -12,6 +12,7 @@
 #include "visualization/html_exporter.hpp"
 #include "visualization/replay_walker.hpp"
 #include "visualization/realistic_synthetic_generator.hpp"
+#include "visualization/session.hpp"
 #include "visualization/synthetic_event_generator.hpp"
 #include "visualization/terminal_renderer.hpp"
 
@@ -128,13 +129,14 @@ int main(int argc, char** argv) {
         const std::string arg{argv[i]};
         const std::string prev = (i > 1) ? std::string{argv[i-1]} : "";
         const bool is_flag_value = (prev == "--synthetic" || prev == "--realistic"
-                                    || prev == "--from-csv");
+                                    || prev == "--from-csv" || prev == "--session");
         if (!is_flag_value && arg[0] != '-') { output_path = arg; break; }
     }
 
     const std::size_t synthetic_count = parse_flag_count(argc, argv, "--synthetic");
     const std::size_t realistic_count = parse_flag_count(argc, argv, "--realistic");
     const std::string csv_path        = parse_flag_string(argc, argv, "--from-csv");
+    const std::string session_path    = parse_flag_string(argc, argv, "--session");
 
     // Reject conflicting source flags.
     const int source_count = (csv_path.empty() ? 0 : 1)
@@ -144,6 +146,23 @@ int main(int argc, char** argv) {
         std::cerr << "ERROR: conflicting source flags: specify at most one of "
                      "--from-csv, --synthetic, or --realistic\n";
         return EXIT_FAILURE;
+    }
+
+    // ── Load existing session (if requested) ──────────────────────────────
+    if (!session_path.empty()) {
+        try {
+            const auto prev = visualization::VisualizationSession::load(session_path);
+            // Print prior session metadata so analysts know what state was last saved.
+            std::cout << "Previous session (" << session_path << "):\n"
+                      << "  frame_count:   " << prev.frame_count << "\n"
+                      << "  current_frame: " << prev.current_frame << "\n"
+                      << "  active_filter: "
+                      << (prev.active_filter.empty() ? "ALL" : prev.active_filter) << "\n"
+                      << "  bookmarks:     " << prev.bookmarks.size() << "\n\n";
+        } catch (const std::exception& ex) {
+            std::cout << "No previous session at " << session_path
+                      << " (will create): " << ex.what() << "\n\n";
+        }
     }
 
     std::cout << "MicrostructureEngine Visualization Demo\n";
@@ -226,6 +245,31 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
     std::cout << "Done. Open " << output_path << " in a browser.\n";
+
+    // ── Save session metadata ──────────────────────────────────────────────
+    // Determine session file path: explicit --session flag or <output>.session.
+    const std::string sess_file = !session_path.empty()
+        ? session_path
+        : output_path + ".session";
+
+    visualization::VisualizationSession sess;
+    sess.source_path   = csv_path;
+    sess.source_mode   = !csv_path.empty()        ? visualization::SourceMode::Csv
+                       : realistic_count > 0      ? visualization::SourceMode::Realistic
+                       : synthetic_count > 0      ? visualization::SourceMode::Synthetic
+                                                  : visualization::SourceMode::Demo;
+    sess.frame_count   = frames.size();
+    sess.first_ts      = frames.empty() ? 0 : frames.front().exchange_timestamp;
+    sess.last_ts       = frames.empty() ? 0 : frames.back().exchange_timestamp;
+    sess.current_frame = 0;       // viewer always starts at frame 0
+    sess.active_filter = "ALL";
+    // bookmarks are managed by the browser viewer (localStorage); C++ side starts empty.
+
+    if (sess.save(sess_file)) {
+        std::cout << "Session saved to: " << sess_file << "\n";
+    } else {
+        std::cerr << "WARN: could not write session file: " << sess_file << "\n";
+    }
 
     return EXIT_SUCCESS;
 }

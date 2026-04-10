@@ -349,6 +349,43 @@ void test_terminal_no_inf_signals() {
     expect_true(!contains(out1, "inf"), "no raw 'inf' in two-sided terminal output");
 }
 
+// ── html_empty_filter_navigation ─────────────────────────────────────────────
+// goFirst / goLast must guard against an empty fltIdxs() result so they do not
+// pass undefined into nav().  The guard text "fi.length===0" must appear in the
+// emitted HTML.
+void test_html_empty_filter_navigation() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+
+    expect_true(contains(html, "fi.length===0"),
+                "goFirst/goLast guard for empty filter result is present");
+    // Both functions must appear and the guard must be in their region
+    const std::size_t gfPos = html.find("function goFirst");
+    const std::size_t gnPos = html.find("function goNext");
+    expect_true(gfPos != std::string::npos, "goFirst present");
+    expect_true(gnPos != std::string::npos, "goNext present");
+    const std::string region = html.substr(gfPos, gnPos - gfPos);
+    expect_true(contains(region, "fi.length===0"),
+                "empty-filter guard is within goFirst/goLast body");
+}
+
+// ── html_bookmark_staleness_guard ─────────────────────────────────────────────
+// loadBookmarks() must sanitize stale indices and renderBookmarkPanel must
+// have a defensive in-range guard for FRAMES[bi].
+void test_html_bookmark_staleness_guard() {
+    const auto frames = two_sided_frames();
+    HtmlExporter exp;
+    const std::string html = exp.render_html(frames);
+
+    // loadBookmarks must filter to only in-range integers
+    expect_true(contains(html, "b<FRAMES.length"),
+                "loadBookmarks filters stale bookmark indices");
+    // renderBookmarkPanel must have the defensive skip for stale entries
+    expect_true(contains(html, "bi>=FRAMES.length"),
+                "renderBookmarkPanel has defensive stale-bookmark guard");
+}
+
 // ── html_has_comparison_mode ──────────────────────────────────────────────────
 // HTML must contain the before/after comparison panel elements and JS functions.
 void test_html_has_comparison_mode() {
@@ -430,8 +467,10 @@ const TestCase TESTS[] = {
     {"html_has_export",             test_html_has_export},
     {"html_has_tape_filter",        test_html_has_tape_filter},
     {"html_has_chart_crosshair",    test_html_has_chart_crosshair},
-    {"html_has_comparison_mode",    test_html_has_comparison_mode},
-    {"html_filter_coherence",       test_html_filter_coherence},
+    {"html_has_comparison_mode",         test_html_has_comparison_mode},
+    {"html_filter_coherence",            test_html_filter_coherence},
+    {"html_empty_filter_navigation",     test_html_empty_filter_navigation},
+    {"html_bookmark_staleness_guard",    test_html_bookmark_staleness_guard},
 };
 
 } // namespace

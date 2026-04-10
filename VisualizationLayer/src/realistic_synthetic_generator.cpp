@@ -21,7 +21,14 @@ static RealisticSyntheticConfig harden(RealisticSyntheticConfig c) {
     if (c.midprice_volatility < 0.0)               c.midprice_volatility = 0.0;
     if (c.regime_shift_probability < 0.0)          c.regime_shift_probability = 0.0;
     if (c.regime_shift_probability > 1.0)          c.regime_shift_probability = 1.0;
-    if (c.post_trade_refill_boost < 0.0)           c.post_trade_refill_boost  = 0.0;
+    if (c.post_trade_refill_boost < 0.0)            c.post_trade_refill_boost  = 0.0;
+    // Spread targets: tight ≥ 1; normal ≥ tight; stressed ≥ normal.
+    if (c.target_spread_tight < 1)
+        c.target_spread_tight = 1;
+    if (c.target_spread_normal < c.target_spread_tight)
+        c.target_spread_normal = c.target_spread_tight;
+    if (c.target_spread_stressed < c.target_spread_normal)
+        c.target_spread_stressed = c.target_spread_normal;
     return c;
 }
 
@@ -115,6 +122,16 @@ double RealisticSyntheticGenerator::regime_lambda_mult() const noexcept {
     return 1.0;
 }
 
+microstructure::Price
+RealisticSyntheticGenerator::regime_spread_target() const noexcept {
+    switch (regime_) {
+    case SyntheticRegime::Tight:    return config_.target_spread_tight;
+    case SyntheticRegime::Normal:   return config_.target_spread_normal;
+    case SyntheticRegime::Stressed: return config_.target_spread_stressed;
+    }
+    return config_.target_spread_normal;
+}
+
 // ── Regime transition ─────────────────────────────────────────────────────────
 
 void RealisticSyntheticGenerator::maybe_shift_regime() {
@@ -193,54 +210,83 @@ microstructure::Event RealisticSyntheticGenerator::emit(
 }
 
 // ── Add ───────────────────────────────────────────────────────────────────────
+//
+// Regime-driven spread targeting replaces the old touch_fill_prob heuristic.
+//
+// Every Add event anchors its k=0 price at:
+//   bid: best_ask - regime_spread_target() * tick
+//   ask: best_bid + regime_spread_target() * tick
+//
+// This creates three behaviours depending on the current spread vs target:
+//   spread < target  → anchor is below (bid) / above (ask) the current inside.
+//                      New orders accumulate there.  When trades clear the old
+//                      inside level the spread widens toward target naturally.
+//   spread == target → anchor coincides with current best; orders join/maintain.
+//   spread > target  → anchor is inside the current spread; new order improves
+//                      the touch and tightens the spread toward target.
+//
+// Because regime switches between Tight (target=1), Normal (target=2), and
+// Stressed (target=3), the spread cycles between narrow and wide throughout
+// the full replay — not just in the first warmup window.
 
 microstructure::Event RealisticSyntheticGenerator::generate_add() {
-    // Choose side
     const bool is_bid = ((rng_() & 1U) == 0U);
     const microstructure::Side side =
         is_bid ? microstructure::Side::Bid : microstructure::Side::Ask;
 
-    // Sample depth offset using near-touch exponential distribution
     const std::size_t k = sample_depth_offset();
     const auto offset = static_cast<microstructure::Price>(k);
+
+    // Target spread for the current regime (ticks).
+    const microstructure::Price tgt = regime_spread_target();
 
     microstructure::Price price{};
 
     if (is_bid) {
-        // Anchor: best_ask - 1 tick (if ask exists), else mid - 1 tick
         const auto ba = best_ask();
+        const auto bb = best_bid();
+
+        // Anchor: best_ask - tgt (the price at which best_bid should sit).
+        // Fall back to mid - 1 tick when no ask exists yet.
         const microstructure::Price anchor = ba.has_value()
-            ? (*ba - config_.tick_size)
+            ? (*ba - tgt * config_.tick_size)
             : (mid_price_ - config_.tick_size);
+
         price = anchor - offset * config_.tick_size;
         if (price < config_.tick_size) price = config_.tick_size;
-        // Guard against crossing
+
+        // Hard guard: bid must never reach or cross best_ask.
         if (ba.has_value() && price >= *ba) {
             price = *ba - config_.tick_size;
             if (price < config_.tick_size) {
-                // No room for a bid — generate ask instead
-                const auto bb = best_bid();
+                // No room for a bid on this side; emit an ask instead.
                 const microstructure::Price ask_anchor = bb.has_value()
-                    ? (*bb + config_.tick_size)
+                    ? (*bb + tgt * config_.tick_size)
                     : (mid_price_ + config_.tick_size);
-                const microstructure::Price ask_price = ask_anchor + offset * config_.tick_size;
+                const microstructure::Price ask_price =
+                    ask_anchor + offset * config_.tick_size;
                 const microstructure::Quantity sz = sample_order_size(k);
-                const microstructure::OrderId oid = next_order_id_++;
-                const auto ev = emit(microstructure::EventType::Add, oid, ask_price, sz,
-                                     microstructure::Side::Ask);
+                const microstructure::OrderId  oid = next_order_id_++;
+                const auto ev = emit(microstructure::EventType::Add, oid,
+                                     ask_price, sz, microstructure::Side::Ask);
                 ask_levels_[ask_price] += sz;
-                safe_orders_.push_back(TrackedOrder{oid, ask_price, sz, microstructure::Side::Ask});
+                safe_orders_.push_back(
+                    TrackedOrder{oid, ask_price, sz, microstructure::Side::Ask});
                 return ev;
             }
         }
     } else {
-        // Anchor: best_bid + 1 tick (if bid exists), else mid + 1 tick
         const auto bb = best_bid();
+
+        // Anchor: best_bid + tgt (the price at which best_ask should sit).
+        // Fall back to mid + 1 tick when no bid exists yet.
         const microstructure::Price anchor = bb.has_value()
-            ? (*bb + config_.tick_size)
+            ? (*bb + tgt * config_.tick_size)
             : (mid_price_ + config_.tick_size);
+
         price = anchor + offset * config_.tick_size;
-        // Guard against crossing
+
+        // Hard guard: ask must never reach or cross best_bid.
         if (bb.has_value() && price <= *bb) price = *bb + config_.tick_size;
     }
 

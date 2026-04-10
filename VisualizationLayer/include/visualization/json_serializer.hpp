@@ -38,7 +38,7 @@ private:
     [[nodiscard]] static std::string serialize_trade(
         const microstructure::TradeExecution& t);
 
-    // Format a double with %.10g (10 significant digits, compact notation).
+    // Format a double with 10 significant digits (locale-independent via std::to_chars).
     [[nodiscard]] static std::string fmt_double(double v);
 };
 

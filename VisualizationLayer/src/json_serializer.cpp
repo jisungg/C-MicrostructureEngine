@@ -1,5 +1,6 @@
 #include "visualization/json_serializer.hpp"
 
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -35,9 +36,14 @@ std::string JsonSerializer::fmt_double(double v) {
     // JSON (RFC 8259) forbids Infinity and NaN.  Emit null for non-finite
     // values so the output remains valid JSON and valid JavaScript.
     if (!std::isfinite(v)) return "null";
+    // Use std::to_chars which is locale-independent (unlike snprintf with %g,
+    // which emits a comma as decimal separator under e.g. French locale).
     char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.10g", v);
-    return std::string{buf};
+    auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), v,
+                                   std::chars_format::general, 10);
+    if (ec == std::errc{}) return std::string{buf, ptr};
+    // Fallback: unreachable for finite doubles with a 64-byte buffer.
+    return "null";
 }
 
 std::string JsonSerializer::escape_string(std::string_view s) {

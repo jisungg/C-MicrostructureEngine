@@ -81,6 +81,22 @@ struct RealisticSyntheticConfig {
     // per event).  Simulates market-maker refilling after a fill.
     double post_trade_refill_boost{0.25};
 
+    // ── Regime-driven spread targets ──────────────────────────────────────
+    // The number of ticks between best_bid and best_ask that new k=0 quotes
+    // aim for within each regime.  All Add events anchor at:
+    //   bid: best_ask - target_spread * tick_size
+    //   ask: best_bid + target_spread * tick_size
+    // This creates natural mean-reversion:
+    //   spread < target → anchor sits below/above current inside; spread
+    //                     widens once the existing touch is cleared by trades
+    //   spread = target → anchor joins existing touch; spread maintained
+    //   spread > target → anchor improves the touch; spread tightens
+    // Regime changes therefore drive recurring widen/tighten cycles across
+    // the full replay instead of a one-off collapse.
+    microstructure::Price target_spread_tight{1};    // narrowest market
+    microstructure::Price target_spread_normal{2};   // standard two-tick
+    microstructure::Price target_spread_stressed{3}; // stressed, wider market
+
     microstructure::Venue venue{microstructure::Venue::Nasdaq};
 };
 
@@ -160,6 +176,8 @@ private:
     [[nodiscard]] double regime_cancel_mult() const noexcept;
     [[nodiscard]] double regime_trade_mult()  const noexcept;
     [[nodiscard]] double regime_lambda_mult() const noexcept;
+    // Target spread for the current regime (in ticks).
+    [[nodiscard]] microstructure::Price regime_spread_target() const noexcept;
 };
 
 } // namespace visualization

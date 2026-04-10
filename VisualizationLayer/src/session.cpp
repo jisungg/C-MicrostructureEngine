@@ -1,6 +1,8 @@
 #include "visualization/session.hpp"
 
+#include <algorithm>
 #include <charconv>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -16,13 +18,25 @@ std::string json_str(const std::string& s) {
     std::string out;
     out.reserve(s.size() + 2);
     out += '"';
-    for (char c : s) {
-        if      (c == '"')  { out += "\\\""; }
-        else if (c == '\\') { out += "\\\\"; }
-        else if (c == '\n') { out += "\\n";  }
-        else if (c == '\r') { out += "\\r";  }
-        else if (c == '\t') { out += "\\t";  }
-        else                { out += c;      }
+    for (const char raw_c : s) {
+        const unsigned char c = static_cast<unsigned char>(raw_c);
+        switch (c) {
+        case '"':  out += "\\\""; break;
+        case '\\': out += "\\\\"; break;
+        case '\n': out += "\\n";  break;
+        case '\r': out += "\\r";  break;
+        case '\t': out += "\\t";  break;
+        case '\b': out += "\\b";  break;
+        case '\f': out += "\\f";  break;
+        default:
+            if (c < 0x20u) {
+                char esc[8];
+                std::snprintf(esc, sizeof(esc), "\\u%04x", static_cast<unsigned>(c));
+                out += esc;
+            } else {
+                out += raw_c;
+            }
+        }
     }
     out += '"';
     return out;
@@ -38,11 +52,15 @@ std::string source_mode_to_str(SourceMode m) noexcept {
     return "demo";
 }
 
-SourceMode source_mode_from_str(const std::string& s) noexcept {
+// Throws on unrecognized token — silently falling back to Demo would hide
+// corrupted or version-mismatched session files.
+SourceMode source_mode_from_str(const std::string& s) {
+    if (s == "demo")      return SourceMode::Demo;
     if (s == "synthetic") return SourceMode::Synthetic;
     if (s == "realistic") return SourceMode::Realistic;
     if (s == "csv")       return SourceMode::Csv;
-    return SourceMode::Demo;
+    throw std::runtime_error(
+        "VisualizationSession::from_json: invalid source_mode: '" + s + "'");
 }
 
 // ── Minimal JSON reader (handles only the flat structure we produce) ──────────
@@ -61,17 +79,47 @@ std::string read_str(const std::string& s, std::size_t& pos) {
     std::string out;
     while (pos < s.size() && s[pos] != '"') {
         if (s[pos] == '\\' && pos + 1 < s.size()) {
-            char c = s[++pos];
-            if      (c == '"')  out += '"';
-            else if (c == '\\') out += '\\';
-            else if (c == 'n')  out += '\n';
-            else if (c == 'r')  out += '\r';
-            else if (c == 't')  out += '\t';
-            else                out += c;
+            const char esc = s[pos + 1];
+            pos += 2;  // skip both backslash and the escape letter
+            switch (esc) {
+            case '"':  out += '"';  break;
+            case '\\': out += '\\'; break;
+            case 'n':  out += '\n'; break;
+            case 'r':  out += '\r'; break;
+            case 't':  out += '\t'; break;
+            case 'b':  out += '\b'; break;
+            case 'f':  out += '\f'; break;
+            case 'u': {
+                // Parse exactly 4 hex digits (\u00XX — the range we emit for
+                // control characters < 0x20).
+                if (pos + 4 > s.size())
+                    throw std::runtime_error(
+                        "VisualizationSession::from_json: truncated \\uXXXX escape");
+                unsigned int cp = 0;
+                for (int i = 0; i < 4; ++i) {
+                    const char h = s[pos++];
+                    unsigned int d;
+                    if      (h >= '0' && h <= '9') d = static_cast<unsigned int>(h - '0');
+                    else if (h >= 'a' && h <= 'f') d = static_cast<unsigned int>(h - 'a') + 10U;
+                    else if (h >= 'A' && h <= 'F') d = static_cast<unsigned int>(h - 'A') + 10U;
+                    else throw std::runtime_error(
+                        "VisualizationSession::from_json: invalid hex digit in \\uXXXX");
+                    cp = cp * 16U + d;
+                }
+                // We only emit \\u00XX (codepoints < 0x80); reject anything wider.
+                if (cp >= 0x80U)
+                    throw std::runtime_error(
+                        "VisualizationSession::from_json: non-ASCII \\uXXXX not supported");
+                out += static_cast<char>(static_cast<unsigned char>(cp));
+                break;
+            }
+            default:
+                out += esc;  // unknown escape: pass through the escape character
+            }
         } else {
             out += s[pos];
+            ++pos;
         }
-        ++pos;
     }
     if (pos >= s.size())
         throw std::runtime_error("VisualizationSession::from_json: unterminated string");
@@ -178,6 +226,48 @@ VisualizationSession VisualizationSession::from_json(const std::string& json) {
                     ++pos;
             }
         }
+    }
+
+    // ── Semantic validation ───────────────────────────────────────────────────
+
+    // active_filter must be a known event-type token or empty / "ALL".
+    if (!sess.active_filter.empty() && sess.active_filter != "ALL") {
+        static const char* const kValid[] = {
+            "ADD", "CANCEL", "MODIFY", "TRADE", "SNAPSHOT", nullptr
+        };
+        bool found = false;
+        for (int ki = 0; kValid[ki]; ++ki) {
+            if (sess.active_filter == kValid[ki]) { found = true; break; }
+        }
+        if (!found)
+            throw std::runtime_error(
+                "VisualizationSession::from_json: invalid active_filter: '" +
+                sess.active_filter + "'");
+    }
+
+    // Validate frame position and bookmark ranges against frame_count.
+    if (sess.frame_count == 0) {
+        // An empty session must have no current position and no bookmarks.
+        if (sess.current_frame != 0)
+            throw std::runtime_error(
+                "VisualizationSession::from_json: current_frame must be 0 "
+                "when frame_count is 0");
+        if (!sess.bookmarks.empty())
+            throw std::runtime_error(
+                "VisualizationSession::from_json: bookmarks must be empty "
+                "when frame_count is 0");
+    } else {
+        // current_frame must be a valid index within frame_count.
+        if (sess.current_frame >= sess.frame_count)
+            throw std::runtime_error(
+                "VisualizationSession::from_json: current_frame (" +
+                std::to_string(sess.current_frame) + ") >= frame_count (" +
+                std::to_string(sess.frame_count) + ")");
+        // Silently drop bookmarks stale from a longer replay.
+        sess.bookmarks.erase(
+            std::remove_if(sess.bookmarks.begin(), sess.bookmarks.end(),
+                           [&sess](std::size_t b){ return b >= sess.frame_count; }),
+            sess.bookmarks.end());
     }
 
     return sess;

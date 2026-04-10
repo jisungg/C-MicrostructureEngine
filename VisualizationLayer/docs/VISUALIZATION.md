@@ -25,19 +25,19 @@ The current HTML viewer includes:
 - signal panels
 - time-series charts
 - a liquidity heatmap toggle
-- an event tape
-- a scrubber
+- an event tape (respects active event-type filter)
+- a scrubber (dims non-matching frames when a filter is active)
 - frame-index jump
-- event-type-filtered navigation
+- jump-to-event-id
+- event-type-filtered navigation (First/Last/Prev/Next/Play all respect the active filter)
+- bookmarks (persisted to localStorage, scoped per replay by frame count and event IDs)
+- before/after comparison mode (delta panel for spread, mid, microprice, imbalance, OFI, and more)
+- session save/load (C++ `VisualizationSession` persisted as JSON alongside the HTML artifact)
 
 It is still not the finished analyst workflow layer. The current implementation does not yet include:
 
 - jump-to-timestamp
-- jump-to-event-id
-- bookmarks or markers
-- saved sessions or session restore
-- before/after comparison views
-- browser automation coverage of the replay UI
+- browser automation or end-to-end DOM tests for the replay UI
 
 ---
 
@@ -156,6 +156,20 @@ This replays a built-in 20-event market scenario, prints terminal previews, and 
 
 Both synthetic modes are deterministic by seed.
 
+### Session save/load
+
+After every run, `viz_demo` writes a session file alongside the HTML artifact (default: `<output>.session`).  On the next run with `--session`, the prior session metadata is printed before the new replay begins:
+
+```bash
+./build_viz/VisualizationLayer/viz_demo replay.html --realistic 2000
+# writes replay.html and replay.html.session
+
+./build_viz/VisualizationLayer/viz_demo replay.html --realistic 2000 --session replay.html.session
+# prints prior frame_count, current_frame, active_filter, bookmark count
+```
+
+The session file is JSON and is readable/writable via `VisualizationSession::save()` / `VisualizationSession::load()`.
+
 ---
 
 ## How to open the HTML artifact
@@ -169,20 +183,23 @@ xdg-open replay.html    # Linux
 
 | Control | Action |
 |---|---|
-| `First` / `Last` | Jump to first or last frame |
-| `Prev` / `Next` | Step one frame |
-| `Play` / `Pause` | Auto-advance at the current speed |
+| `First` / `Last` | Jump to first or last frame matching the active filter |
+| `Prev` / `Next` | Step one frame (filter-aware) |
+| `Play` / `Pause` | Auto-advance at the current speed (filter-aware) |
 | Speed slider | Change autoplay interval |
 | `Heatmap` | Toggle the liquidity heatmap panel |
-| Filter select | Restrict `Prev` / `Next` / autoplay traversal by event type |
+| Filter select | Restrict all navigation and tape/scrubber display by event type |
 | Jump input + `Go` | Jump to a specific frame index |
-| Scrubber click or drag | Seek to a replay position by frame index |
+| Event-ID input + `Jump` | Jump to the frame with a given event ID |
+| Scrubber click or drag | Seek to a replay position; non-matching frames are dimmed when a filter is active |
+| Bookmark button | Toggle a bookmark on the current frame |
+| Bookmark list | Navigate directly to any bookmarked frame |
+| Compare button | Set the current frame as the comparison baseline |
+| Clear Cmp | Remove the comparison baseline |
 | `←` / `→` | Prev / Next |
 | `Space` | Play / Pause |
 | `Home` / `End` | First / Last |
 | `h` | Toggle heatmap |
-
-Important note: the current filter affects navigation behavior, not full panel visibility. The viewer still renders the full tape and scrubber over the whole frame sequence.
 
 ## What the HTML viewer currently shows
 
@@ -230,17 +247,19 @@ ctest --test-dir build_viz --output-on-failure
 ./build_viz/VisualizationLayer/viz_test_realistic_generator  <test_case>
 ./build_viz/VisualizationLayer/viz_test_event_loader         <test_case>
 ./build_viz/VisualizationLayer/viz_test_boundaries           <test_case>
+./build_viz/VisualizationLayer/viz_test_session              <test_case>
 ```
 
 The visualization layer is covered by focused tests for:
 
 - frame extraction
 - replay walking
-- JSON and HTML export
+- JSON and HTML export (including filter coherence, comparison mode, bookmark staleness)
 - terminal rendering
-- simple and realistic synthetic generators
-- CSV loading
+- simple and realistic synthetic generators (including spread diversity)
+- CSV loading (including timestamp ordering)
 - empty and boundary cases
+- session JSON round-trips (including all escape sequences and edge cases)
 
 ---
 
@@ -336,11 +355,8 @@ Both generators reset internal state on `generate()` and return identical sequen
 
 - single-venue frame capture only; consolidated replay is not wired into this layer yet
 - CSV is the only file-backed replay source implemented today
-- no jump-to-timestamp or jump-to-event-id
-- no bookmarks, markers, saved sessions, or session restore
-- no before/after comparison mode
-- no browser automation or end-to-end DOM tests
-- filter semantics are currently navigation-oriented rather than full-panel filtering
+- no jump-to-timestamp
+- no browser automation or end-to-end DOM tests for the replay UI
 
 ---
 

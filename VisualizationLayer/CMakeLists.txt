@@ -103,6 +103,8 @@ set(VIZ_EXPORTER_TESTS
     html_has_chart_crosshair
     html_has_comparison_mode
     html_filter_coherence
+    html_empty_filter_navigation
+    html_bookmark_staleness_guard
 )
 
 foreach(tc IN LISTS VIZ_EXPORTER_TESTS)
@@ -138,6 +140,10 @@ set(VIZ_REALISTIC_TESTS
     realistic_imbalance_trade_bias
     realistic_stress
     realistic_frame_signals_vary
+    realistic_spread_varies
+    realistic_spread_post_warmup
+    realistic_spread_multi_segment
+    realistic_spread_multi_seed
     realistic_low_mid_price
 )
 
@@ -195,6 +201,19 @@ set(VIZ_SESSION_TESTS
     session_from_json_bad_input
     session_json_contains_keys
     session_bookmark_persistence
+    session_invalid_filter
+    session_frame_overflow
+    session_bookmark_pruning
+    session_valid_filter_tokens
+    session_backspace_roundtrip
+    session_formfeed_roundtrip
+    session_control_char_roundtrip
+    session_invalid_unicode_escape
+    session_mixed_escape_roundtrip
+    session_invalid_source_mode
+    session_zero_frame_valid
+    session_zero_frame_invalid_current
+    session_zero_frame_invalid_bookmark
 )
 
 foreach(tc IN LISTS VIZ_SESSION_TESTS)

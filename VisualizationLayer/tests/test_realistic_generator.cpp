@@ -261,8 +261,8 @@ void test_realistic_stress() {
 }
 
 // ── realistic_frame_signals_vary ─────────────────────────────────────────────
-// After a long realistic run, imbalance and spread values should not all be
-// identical — the model must produce visible variation in signals.
+// After a long realistic run, imbalance values should not all be identical —
+// the model must produce visible signal variation.
 void test_realistic_frame_signals_vary() {
     RealisticSyntheticConfig cfg;
     cfg.total_events = 1'000;
@@ -281,6 +281,133 @@ void test_realistic_frame_signals_vary() {
         }
     }
     expect_true(imbalances.size() > 3, "imbalance must vary across frames");
+    // Note: spread variation is verified separately in realistic_spread_varies.
+}
+
+// ── realistic_spread_varies ───────────────────────────────────────────────────
+// The realistic generator must produce sustained spread variation throughout a
+// long run.  Regime-driven spread targeting (target=1/2/3 ticks per regime)
+// keeps cycles alive: Tight collapses to 1 tick, Normal/Stressed mean-revert
+// to 2-3 ticks.  seed=77 is the conservative case (≈22% wide-spread frames).
+void test_realistic_spread_varies() {
+    RealisticSyntheticConfig cfg;
+    cfg.total_events = 2'000;
+    cfg.seed         = 77;
+
+    RealisticSyntheticGenerator gen{cfg};
+    FrameCapture capture;
+    const auto frames = capture.capture(gen.generate());
+
+    std::size_t two_sided{0};
+    std::size_t wide_spread{0};  // spread > 1 tick
+    std::set<int> spreads_seen;
+    for (const auto& f : frames) {
+        if (f.best_bid.has_value() && f.best_ask.has_value()) {
+            ++two_sided;
+            const int sp = static_cast<int>(*f.best_ask - *f.best_bid);
+            if (sp > 0) spreads_seen.insert(sp);
+            if (sp > 1) ++wide_spread;
+        }
+    }
+    expect_true(two_sided > 0, "must have two-sided frames");
+    // Multiple distinct spread levels confirm regime-driven widen/tighten cycles.
+    expect_true(spreads_seen.size() >= 2,
+                "must see at least two distinct spread values");
+    // ≥ 100 wide-spread frames in 2 000 events — verifies sustained variation,
+    // not just a transient warmup spike.  seed=77 yields ≈ 447 empirically.
+    expect_true(wide_spread >= 100,
+                "at least 100 frames must have spread > 1 tick (got " +
+                std::to_string(wide_spread) + ")");
+}
+
+// ── realistic_spread_post_warmup ─────────────────────────────────────────────
+// Regime-driven spread dynamics must persist beyond the initial warmup window.
+// A spread collapse during warmup is acceptable; what must NOT happen is a
+// permanent lock where the spread stays at 1 tick for the rest of the replay.
+// Requirement: ≥ 20 wide-spread frames appear after frame 200.
+void test_realistic_spread_post_warmup() {
+    RealisticSyntheticConfig cfg;
+    cfg.total_events = 2'000;
+    cfg.seed         = 77;  // conservative seed (≈22% wide-spread overall)
+
+    RealisticSyntheticGenerator gen{cfg};
+    FrameCapture capture;
+    const auto frames = capture.capture(gen.generate());
+
+    std::size_t post_warmup_wide{0};
+    for (std::size_t i = 200; i < frames.size(); ++i) {
+        const auto& f = frames[i];
+        if (f.best_bid.has_value() && f.best_ask.has_value()) {
+            if (static_cast<int>(*f.best_ask - *f.best_bid) > 1)
+                ++post_warmup_wide;
+        }
+    }
+    expect_true(post_warmup_wide >= 20,
+                "spread must widen after warmup (got " +
+                std::to_string(post_warmup_wide) + " wide frames post-200)");
+}
+
+// ── realistic_spread_multi_segment ───────────────────────────────────────────
+// Spread variation must recur across multiple time segments of the replay —
+// not only during early warmup.  Divide 2 000 events into 4 quartiles and
+// require that at least 3 quartiles each contain ≥ 1 wide-spread frame.
+void test_realistic_spread_multi_segment() {
+    RealisticSyntheticConfig cfg;
+    cfg.total_events = 2'000;
+    cfg.seed         = 77;
+
+    RealisticSyntheticGenerator gen{cfg};
+    FrameCapture capture;
+    const auto frames = capture.capture(gen.generate());
+
+    const std::size_t n = frames.size();
+    if (n == 0) throw TestFailure("no frames");
+
+    // Count wide-spread frames per quartile.
+    std::size_t wide_per_q[4]{};
+    for (std::size_t i = 0; i < n; ++i) {
+        const auto& f = frames[i];
+        if (f.best_bid.has_value() && f.best_ask.has_value()) {
+            if (static_cast<int>(*f.best_ask - *f.best_bid) > 1)
+                ++wide_per_q[i * 4 / n];
+        }
+    }
+
+    std::size_t q_with_wide{0};
+    for (std::size_t q = 0; q < 4; ++q)
+        if (wide_per_q[q] >= 1) ++q_with_wide;
+
+    expect_true(q_with_wide >= 3,
+                "wide-spread frames must appear in ≥ 3 of 4 quartiles (got " +
+                std::to_string(q_with_wide) + ")");
+}
+
+// ── realistic_spread_multi_seed ───────────────────────────────────────────────
+// Spread dynamics are not a lucky seed artifact: every tested seed must yield
+// ≥ 50 wide-spread frames in a 2 000-event run.
+void test_realistic_spread_multi_seed() {
+    constexpr std::uint32_t seeds[] = {42, 77, 13, 1, 7};
+    for (const auto seed : seeds) {
+        RealisticSyntheticConfig cfg;
+        cfg.total_events = 2'000;
+        cfg.seed         = seed;
+
+        RealisticSyntheticGenerator gen{cfg};
+        FrameCapture capture;
+        const auto frames = capture.capture(gen.generate());
+
+        std::size_t wide{0};
+        for (const auto& f : frames) {
+            if (f.best_bid.has_value() && f.best_ask.has_value()) {
+                if (static_cast<int>(*f.best_ask - *f.best_bid) > 1)
+                    ++wide;
+            }
+        }
+        expect_true(wide >= 50,
+                    "seed=" + std::to_string(seed) +
+                    ": expected ≥50 wide-spread frames, got " +
+                    std::to_string(wide));
+    }
 }
 
 // ── realistic_low_mid_price ───────────────────────────────────────────────────
@@ -320,6 +447,10 @@ int run_test(const std::string& name) {
         else if (name == "realistic_imbalance_trade_bias") test_realistic_imbalance_trade_bias();
         else if (name == "realistic_stress")               test_realistic_stress();
         else if (name == "realistic_frame_signals_vary")   test_realistic_frame_signals_vary();
+        else if (name == "realistic_spread_varies")         test_realistic_spread_varies();
+        else if (name == "realistic_spread_post_warmup")   test_realistic_spread_post_warmup();
+        else if (name == "realistic_spread_multi_segment") test_realistic_spread_multi_segment();
+        else if (name == "realistic_spread_multi_seed")    test_realistic_spread_multi_seed();
         else if (name == "realistic_low_mid_price")        test_realistic_low_mid_price();
         else {
             std::cerr << "UNKNOWN TEST: " << name << "\n";

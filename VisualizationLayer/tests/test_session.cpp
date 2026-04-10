@@ -192,30 +192,218 @@ void test_session_json_contains_keys() {
 // ── session_bookmark_persistence ─────────────────────────────────────────────
 // Empty and non-empty bookmark lists survive a round-trip without corruption.
 void test_session_bookmark_persistence() {
-    // Empty bookmarks
+    // Empty bookmarks (frame_count=0 is valid with empty bookmarks)
     {
         VisualizationSession s;
+        s.frame_count = 0;
         s.bookmarks = {};
         const auto s2 = VisualizationSession::from_json(s.to_json());
         expect_true(s2.bookmarks.empty(), "empty bookmarks round-trip");
     }
-    // Single bookmark
+    // Single bookmark — frame_count must exceed the bookmark index
     {
         VisualizationSession s;
+        s.frame_count = 100;
         s.bookmarks = {42};
         const auto s2 = VisualizationSession::from_json(s.to_json());
         expect_eq(s2.bookmarks.size(), std::size_t{1}, "single bookmark count");
         expect_eq(s2.bookmarks[0], std::size_t{42}, "single bookmark value");
     }
-    // Many bookmarks
+    // Many bookmarks — frame_count must cover the largest index
     {
         VisualizationSession s;
+        s.frame_count = 5000;  // 50 * 10 * (50-1) = 490 max index, needs > 490
         for (std::size_t i = 0; i < 50; ++i) s.bookmarks.push_back(i * 10);
         const auto s2 = VisualizationSession::from_json(s.to_json());
         expect_eq(s2.bookmarks.size(), std::size_t{50}, "50 bookmarks count");
         for (std::size_t i = 0; i < 50; ++i)
             expect_eq(s2.bookmarks[i], i * 10, "bookmark[" + std::to_string(i) + "]");
     }
+}
+
+// ── session_invalid_filter ────────────────────────────────────────────────────
+// from_json must throw when active_filter is not a known token.
+void test_session_invalid_filter() {
+    VisualizationSession s;
+    s.frame_count   = 100;
+    s.active_filter = "BOGUS_TYPE";
+    const auto json = s.to_json();
+    bool threw = false;
+    try {
+        (void)VisualizationSession::from_json(json);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    expect_true(threw, "invalid active_filter must throw on from_json");
+}
+
+// ── session_frame_overflow ────────────────────────────────────────────────────
+// from_json must throw when current_frame >= frame_count.
+void test_session_frame_overflow() {
+    VisualizationSession s;
+    s.frame_count   = 50;
+    s.current_frame = 50;  // == frame_count: invalid (max valid index is 49)
+    const auto json = s.to_json();
+    bool threw = false;
+    try {
+        (void)VisualizationSession::from_json(json);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    expect_true(threw, "current_frame >= frame_count must throw");
+}
+
+// ── session_bookmark_pruning ──────────────────────────────────────────────────
+// from_json must silently drop bookmarks that exceed frame_count.
+void test_session_bookmark_pruning() {
+    VisualizationSession s;
+    s.frame_count   = 10;
+    s.current_frame = 0;
+    s.bookmarks     = {0, 5, 9, 10, 50, 999};  // indices 10, 50, 999 are out of range
+
+    const auto json = s.to_json();
+    const auto s2   = VisualizationSession::from_json(json);
+
+    expect_eq(s2.bookmarks.size(), std::size_t{3}, "only in-range bookmarks retained");
+    expect_eq(s2.bookmarks[0], std::size_t{0}, "bookmark 0 kept");
+    expect_eq(s2.bookmarks[1], std::size_t{5}, "bookmark 5 kept");
+    expect_eq(s2.bookmarks[2], std::size_t{9}, "bookmark 9 kept");
+}
+
+// ── session_valid_filter_tokens ───────────────────────────────────────────────
+// All valid filter tokens must round-trip without throwing.
+void test_session_valid_filter_tokens() {
+    const std::string tokens[] = {"ALL", "ADD", "CANCEL", "MODIFY", "TRADE", "SNAPSHOT", ""};
+    for (const auto& tok : tokens) {
+        VisualizationSession s;
+        s.frame_count   = 100;
+        s.current_frame = 0;
+        s.active_filter = tok;
+        // Must not throw
+        const auto s2 = VisualizationSession::from_json(s.to_json());
+        expect_eq(s2.active_filter, tok, "filter token round-trip: '" + tok + "'");
+    }
+}
+
+// ── session_backspace_roundtrip ───────────────────────────────────────────────
+// \b (0x08) in source_path must survive to_json / from_json unchanged.
+void test_session_backspace_roundtrip() {
+    VisualizationSession s;
+    s.source_path = "path\bwith\bbackspace";
+    const auto json = s.to_json();
+    expect_true(contains(json, "\\b"), "json must contain \\b escape");
+    const auto s2 = VisualizationSession::from_json(json);
+    expect_eq(s2.source_path, s.source_path, "backspace round-trip");
+}
+
+// ── session_formfeed_roundtrip ────────────────────────────────────────────────
+// \f (0x0C) in source_path must survive to_json / from_json unchanged.
+void test_session_formfeed_roundtrip() {
+    VisualizationSession s;
+    s.source_path = "path\fwith\fformfeed";
+    const auto json = s.to_json();
+    expect_true(contains(json, "\\f"), "json must contain \\f escape");
+    const auto s2 = VisualizationSession::from_json(json);
+    expect_eq(s2.source_path, s.source_path, "formfeed round-trip");
+}
+
+// ── session_control_char_roundtrip ────────────────────────────────────────────
+// Control characters encoded as \uXXXX (0x01 and 0x1F) must round-trip.
+void test_session_control_char_roundtrip() {
+    VisualizationSession s;
+    s.source_path = std::string{"\x01\x1f"};  // SOH and US
+    const auto json = s.to_json();
+    expect_true(contains(json, "\\u00"), "json must use \\uXXXX for control chars");
+    const auto s2 = VisualizationSession::from_json(json);
+    expect_eq(s2.source_path, s.source_path, "control char \\uXXXX round-trip");
+}
+
+// ── session_invalid_unicode_escape ────────────────────────────────────────────
+// A malformed \uXXXX (invalid hex digits) must throw from from_json.
+void test_session_invalid_unicode_escape() {
+    const std::string bad_json =
+        R"({"source_path":"path\uGGGG","source_mode":"demo",)"
+        R"("frame_count":0,"first_ts":0,"last_ts":0,)"
+        R"("current_frame":0,"active_filter":"ALL","bookmarks":[]})";
+    bool threw = false;
+    try {
+        (void)VisualizationSession::from_json(bad_json);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    expect_true(threw, "invalid \\uXXXX must throw");
+}
+
+// ── session_mixed_escape_roundtrip ────────────────────────────────────────────
+// A string combining all escape types must survive a full round-trip.
+void test_session_mixed_escape_roundtrip() {
+    VisualizationSession s;
+    // Contains: ", \, \n, \r, \t, \b, \f, and a raw control char 0x02
+    s.source_path = "a\"b\\c\nd\re\tf\bg\fh\x02i";
+    const auto json = s.to_json();
+    const auto s2   = VisualizationSession::from_json(json);
+    expect_eq(s2.source_path, s.source_path, "mixed escape round-trip");
+}
+
+// ── session_invalid_source_mode ───────────────────────────────────────────────
+// An unknown source_mode token in JSON must throw from from_json.
+void test_session_invalid_source_mode() {
+    const std::string bad_json =
+        R"({"source_path":"","source_mode":"unknown_mode",)"
+        R"("frame_count":0,"first_ts":0,"last_ts":0,)"
+        R"("current_frame":0,"active_filter":"ALL","bookmarks":[]})";
+    bool threw = false;
+    try {
+        (void)VisualizationSession::from_json(bad_json);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    expect_true(threw, "unknown source_mode must throw");
+}
+
+// ── session_zero_frame_valid ──────────────────────────────────────────────────
+// frame_count=0, current_frame=0, empty bookmarks must be accepted.
+void test_session_zero_frame_valid() {
+    VisualizationSession s;
+    s.frame_count   = 0;
+    s.current_frame = 0;
+    s.bookmarks     = {};
+    const auto s2 = VisualizationSession::from_json(s.to_json());
+    expect_eq(s2.frame_count,   std::size_t{0}, "zero-frame: frame_count");
+    expect_eq(s2.current_frame, std::size_t{0}, "zero-frame: current_frame");
+    expect_true(s2.bookmarks.empty(),            "zero-frame: bookmarks empty");
+}
+
+// ── session_zero_frame_invalid_current ───────────────────────────────────────
+// frame_count=0 with current_frame=1 must throw.
+void test_session_zero_frame_invalid_current() {
+    const std::string bad_json =
+        R"({"source_path":"","source_mode":"demo",)"
+        R"("frame_count":0,"first_ts":0,"last_ts":0,)"
+        R"("current_frame":1,"active_filter":"ALL","bookmarks":[]})";
+    bool threw = false;
+    try {
+        (void)VisualizationSession::from_json(bad_json);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    expect_true(threw, "frame_count=0 with current_frame=1 must throw");
+}
+
+// ── session_zero_frame_invalid_bookmark ──────────────────────────────────────
+// frame_count=0 with non-empty bookmarks must throw.
+void test_session_zero_frame_invalid_bookmark() {
+    const std::string bad_json =
+        R"({"source_path":"","source_mode":"demo",)"
+        R"("frame_count":0,"first_ts":0,"last_ts":0,)"
+        R"("current_frame":0,"active_filter":"ALL","bookmarks":[0]})";
+    bool threw = false;
+    try {
+        (void)VisualizationSession::from_json(bad_json);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    expect_true(threw, "frame_count=0 with non-empty bookmarks must throw");
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -232,6 +420,19 @@ int run_test(const std::string& name) {
         else if (name == "session_from_json_bad_input")    test_session_from_json_bad_input();
         else if (name == "session_json_contains_keys")     test_session_json_contains_keys();
         else if (name == "session_bookmark_persistence")   test_session_bookmark_persistence();
+        else if (name == "session_invalid_filter")         test_session_invalid_filter();
+        else if (name == "session_frame_overflow")         test_session_frame_overflow();
+        else if (name == "session_bookmark_pruning")       test_session_bookmark_pruning();
+        else if (name == "session_valid_filter_tokens")    test_session_valid_filter_tokens();
+        else if (name == "session_backspace_roundtrip")    test_session_backspace_roundtrip();
+        else if (name == "session_formfeed_roundtrip")     test_session_formfeed_roundtrip();
+        else if (name == "session_control_char_roundtrip") test_session_control_char_roundtrip();
+        else if (name == "session_invalid_unicode_escape") test_session_invalid_unicode_escape();
+        else if (name == "session_mixed_escape_roundtrip") test_session_mixed_escape_roundtrip();
+        else if (name == "session_invalid_source_mode")    test_session_invalid_source_mode();
+        else if (name == "session_zero_frame_valid")           test_session_zero_frame_valid();
+        else if (name == "session_zero_frame_invalid_current") test_session_zero_frame_invalid_current();
+        else if (name == "session_zero_frame_invalid_bookmark")test_session_zero_frame_invalid_bookmark();
         else {
             std::cerr << "UNKNOWN TEST: " << name << "\n";
             return 1;

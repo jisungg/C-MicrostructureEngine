@@ -382,6 +382,17 @@ var idx=0,playing=false,playTmr=null,speedMs=200,flt='ALL',showHm=false;
 var bookmarks=[];
 var xhairFrac=null;
 var cmpIdx=-1;
+
+// ── replay-scoped localStorage key ─────────────────────────────────────────
+// Bookmarks are keyed by a stable identity derived from this replay's frame
+// count and first/last event IDs.  Two different replays sharing the same
+// frame count but different events will have different keys, preventing
+// bookmark bleed-over between unrelated replays.
+var BK_KEY=(function(){
+  var n=FRAMES.length;
+  if(n===0)return'mse_bk_empty';
+  return'mse_bk_'+n+'_'+FRAMES[0].event_id+'_'+FRAMES[n-1].event_id;
+})();
 var CHART_IDS=['chart-spread','chart-imbalance','chart-ofi',
                'chart-microprice','chart-liqslope','chart-cancelrate'];
 var CHART_KEYS=['spread','imbalance','ofi','microprice','liquidity_slope','cancel_rate'];
@@ -389,10 +400,20 @@ var CHART_DPS=[3,4,4,4,4,4];
 
 // ── bookmarks ──────────────────────────────────────────────────────────────
 function loadBookmarks(){
-  try{var s=localStorage.getItem('mse_bk');if(s)bookmarks=JSON.parse(s);}catch(ex){}
+  try{
+    var s=localStorage.getItem(BK_KEY);
+    if(s){
+      var raw=JSON.parse(s);
+      // Sanitize: keep only in-range integers valid for this replay.
+      // Stale bookmarks from a previous (longer) replay are silently dropped.
+      bookmarks=raw.filter(function(b){
+        return typeof b==='number'&&Number.isInteger(b)&&b>=0&&b<FRAMES.length;
+      });
+    }
+  }catch(ex){}
 }
 function saveBookmarks(){
-  try{localStorage.setItem('mse_bk',JSON.stringify(bookmarks));}catch(ex){}
+  try{localStorage.setItem(BK_KEY,JSON.stringify(bookmarks));}catch(ex){}
 }
 function toggleBookmark(){
   var i=bookmarks.indexOf(idx);
@@ -422,7 +443,9 @@ function renderBookmarkPanel(){
   }
   var h='';
   for(var i=0;i<bookmarks.length;i++){
-    var bi=bookmarks[i],f=FRAMES[bi],isCur=(bi===idx);
+    var bi=bookmarks[i];
+    if(bi>=FRAMES.length)continue;  // defensive: should not occur after loadBookmarks sanitizes
+    var f=FRAMES[bi],isCur=(bi===idx);
     h+='<div class="bk-row'+(isCur?' bk-cur':'')+'" onclick="stopPlay();nav('+bi+')">'+
        '<div class="bk-dot"></div>'+
        '<span>Frame '+bi+'</span>'+
@@ -435,6 +458,7 @@ function renderBookmarkPanel(){
   if(bt&&FRAMES.length>1){
     var th='';
     for(var j=0;j<bookmarks.length;j++){
+      if(bookmarks[j]>=FRAMES.length)continue;  // defensive guard
       var pct=((bookmarks[j]/(FRAMES.length-1))*100).toFixed(3);
       th+='<div class="bk-tick" style="left:'+pct+'%"></div>';
     }
@@ -599,11 +623,13 @@ function nav(n){idx=clamp(n,0,FRAMES.length-1);render();}
 function goFirst(){
   stopPlay();
   var fi=fltIdxs();
+  if(fi&&fi.length===0)return;  // no frames match filter — stay put
   nav(fi?fi[0]:0);
 }
 function goLast(){
   stopPlay();
   var fi=fltIdxs();
+  if(fi&&fi.length===0)return;  // no frames match filter — stay put
   nav(fi?fi[fi.length-1]:FRAMES.length-1);
 }
 function goNext(){
